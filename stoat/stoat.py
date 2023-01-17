@@ -1,14 +1,15 @@
-### Imports and settings ###
+### Imports ###
 from typing import Optional, Union, Iterable, Tuple
 
 import pandas as pd
 import numpy as np
 
+from os.path import exists
+
 from netZooPy.panda.panda import Panda
 
-from stoat_plotting import *
-
-# plt.rcParams['text.usetex'] = True
+from stoat.plotting import *
+from stoat.functions import *
 
 ### Class definition ###
 class Stoat:
@@ -271,7 +272,8 @@ class Stoat:
         distance: float = None,
         max_invalid: int = 0,
         edges_invalid: bool = True,
-        kernel: str = 'uniform'
+        kernel: str = 'uniform',
+        sigma: float = 0.5
     ) -> None:
 
 
@@ -300,6 +302,8 @@ class Stoat:
         self.spatial['NumInvNeigh'] = (self.spatial['NumNeigh'] -
             self.spatial['NumValNeigh'])
 
+        # TODO: Make sure the averaged spot is invalid if the original
+        # one was invalid (not assured atm)
         # Set the validity column based on the invalid neighbours
         self.spatial['Valid'] = self.spatial['NumInvNeigh'] <= max_invalid
         # Exclude edges too
@@ -315,6 +319,7 @@ class Stoat:
             self.spatial['Valid'] = self.spatial['Valid'] & (max_neigh == 
                 self.spatial['NumNeigh'])
 
+        # TODO: Make sure the kernels only consider valid neighbours
         if kernel == 'uniform':
             # The contribution of every cell to the average is independent of
             # the distance from the central cell
@@ -323,9 +328,21 @@ class Stoat:
                 ['Neighbours']].sum(), axis=1)
             self.avg_expression = sum_exp.apply(lambda x: 
                 x / self.spatial['NumNeigh'])
+        elif kernel == 'gaussian':
+            # The contribution is based on the distance from the central cell
+            # and decreases proportionally to exp(-r**2)
+            # Define a gaussian distribution with a provided sigma
+            calculate_gaussian_fixed = lambda r: calculate_gaussian(r, sigma)
+            # Provide the function as an input to distance weighting template
+            compute_weighted_sum = lambda row: weight_by_distance(row, 
+                self.spatial, self.expression, calculate_gaussian_fixed)
+            sum_exp = self.expression.apply(compute_weighted_sum, axis=1)
+            self.avg_expression = sum_exp.apply(lambda row: row.divide(
+                get_distance_to_neighbours(row, self.spatial).apply(
+                calculate_gaussian_fixed).sum(), axis=0), axis=1)
         else:
             raise NotImplementedError('Unrecognised kernel: {}'.format(kernel)
-                + '\nOptions are: uniform')
+                + '\nOptions are: uniform, gaussian')
 
 
     ### Data plotting ###
@@ -374,8 +391,8 @@ class Stoat:
             expr_df = self.expression
             validity = 'Success'
 
-        return plot_spot_expression(self.spatial, expr_df, validity, colour_from, 
-            colourmap, label, title, hide_overflow)
+        return plot_spot_expression(self.spatial, expr_df, validity, 
+            colour_from, colourmap, label, title, hide_overflow)
 
 
     ### Network calculation ###
@@ -400,7 +417,8 @@ class Stoat:
     def calculate(
         self,
         spot_barcodes: Union[str, Iterable[str], None] = None,
-        save_panda: bool = False
+        save_panda: bool = False,
+        overwrite_old = True
     ) -> None:
 
 
@@ -427,14 +445,23 @@ class Stoat:
         n_spots = len(panda_input.columns)
 
         for bc in barcodes:
+            # Names of output files
+            panda_outfile = (self.output_dir + 'panda_' + '{}.txt'.format(bc))
+            stoat_outfile = (self.output_dir + 'stoat_' + '{}.txt'.format(bc))
+
+            # Check if we're overwriting
+            if not overwrite_old and (exists(stoat_outfile) or 
+                (save_panda and exists(panda_outfile))):
+                print ('Skipping spot {} because the STOAT or '.format(bc) + 
+                    'PANDA file already exists in the target directory')
+                continue
+
             print ('Calculating the STOAT network for spot {}'.format(bc))
 
             panda_obj = Panda(panda_input.drop(bc, axis=1), self.motif_prior, 
                 self.ppi_prior, computing=self.computing)
 
             if save_panda:
-                panda_outfile = (self.output_dir + 'panda_' + 
-                    '{}.txt'.format(bc))
                 print ('Saving the intermediate PANDA network to ' + 
                     '{}'.format(panda_outfile))
                 panda_obj.save_panda_results(panda_outfile)
@@ -443,6 +470,5 @@ class Stoat:
 
             stoat_net = n_spots * (self.panda_network - panda_net) + panda_net
 
-            stoat_outfile = (self.output_dir + 'stoat_' + '{}.txt'.format(bc))
             print ('Saving the STOAT network to {}'.format(stoat_outfile))
             stoat_net.to_csv(stoat_outfile, sep='\t')
