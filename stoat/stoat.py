@@ -338,7 +338,7 @@ class Stoat:
                 self.spatial, self.expression, calculate_gaussian_fixed)
             sum_exp = self.expression.apply(compute_weighted_sum, axis=1)
             self.avg_expression = sum_exp.apply(lambda row: row.divide(
-                get_distance_to_neighbours(row, self.spatial).apply(
+                get_distance_to_neighbours(row.name, self.spatial).apply(
                 calculate_gaussian_fixed).sum(), axis=0), axis=1)
         else:
             raise NotImplementedError('Unrecognised kernel: {}'.format(kernel)
