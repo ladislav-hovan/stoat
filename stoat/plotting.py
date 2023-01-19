@@ -27,7 +27,40 @@ def plot_spot_expression(
     hide_overflow: bool = True
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
-    
+    Plots the map of spots for the spatial expression data. It can 
+    colour the spots based on an additional supplied gene name.
+
+    Indices within the two dataframes should match.
+
+    Parameters
+    ----------
+    spatial : pd.DataFrame
+        The dataframe containing spatial information about the spots
+    expression : pd.DataFrame
+        The dataframe containing the expression levels for the spots
+    validity : str, optional
+        The column name in the spatial dataframe to be used to determine
+        validity, by default 'Success'
+    colour_from : str, optional
+        The name of the gene that the colouring will be based on,
+        or 'sum_all' for the sum of all genes, or None to colour all
+        valid cells the same colour, by default None
+    colourmap : str, optional
+        The name of the matplotlib colourmap to use, by default 
+        'Greens'
+    label : str, optional
+        The label for the colourbar or None for no label, by default
+        None
+    title : str, optional
+        A title for the figure or None for no title, by default None
+    hide_overflow : bool, optional
+        Whether to restrict the range to the bottom 99% of values and
+        colour the top 1% with a different colour, by default True
+
+    Returns
+    -------
+    Tuple[plt.Figure, plt.Axes]
+        The matplotlib Figure and Axes objects of the resulting plot
     """
 
     # Create a colourmap and assign colours
@@ -69,7 +102,35 @@ def plot_spot_classification(
     labels: Optional[Mapping] = None,
     title: Optional[str] = None
 ) -> Tuple[plt.Figure, plt.Axes]:
+    """
+    Plots the map of spots coloured by their classification.
 
+    Indices within the series and the dataframe should match.
+
+    Parameters
+    ----------
+    spatial : pd.DataFrame
+        The dataframe containing spatial information about the spots
+    classes : pd.Series
+        A series of class names for the spots
+    validity : str, optional
+        The column name in the spatial dataframe to be used to determine
+        validity ('Valid' or 'Success'), by default 'Success'
+    colourmap : str, optional
+        The name of the matplotlib colourmap to use, by default 'Set2'
+    legend : bool, optional
+        Whether to plot the legend, by default True
+    labels : Mapping, optional
+        A mapping of class names provided in classes to names to be used
+        for the legend or None to keep the names, by default None
+    title : str, optional
+        A title for the figure or None for no title, by default None
+
+    Returns
+    -------
+    Tuple[plt.Figure, plt.Axes]
+        The matplotlib Figure and Axes objects of the resulting plot
+    """
 
     # If the classes are not integers, define a new series
     classes_list = list(classes.unique())
@@ -116,6 +177,22 @@ def convert_coordinates(
     x: np.array,
     y: np.array
 ) -> Tuple[np.array, np.array]:
+    """
+    Converts the x and y indices of the spatial array to coordinates
+    corresponding to the centres of hexagons in a hexagonal plot.
+
+    Parameters
+    ----------
+    x : np.array
+        An array of x indices
+    y : np.array
+        An array of y indices
+
+    Returns
+    -------
+    Tuple[np.array, np.array]
+        A tuple containing the converted x and y coordinates
+    """
 
 
     # Vertical cartesian coordinates
@@ -131,7 +208,26 @@ def generate_cmap_and_colours(
     colourmap: str,
     hide_overflow = True
 ) -> Tuple[Colormap, Normalize, pd.Series]:
+    """
+    Generates the colourmap, the normalisation function and the 
+    normalised series of colour values.
 
+    Parameters
+    ----------
+    values : pd.Series
+        The numerical values to be used for colour assignment
+    colourmap : str
+        The name of the matplotlib colourmap to use
+    hide_overflow : bool, optional
+        Whether to restrict the range to the bottom 99% of values and
+        colour the top 1% with a different colour, by default True
+
+    Returns
+    -------
+    Tuple[Colormap, Normalize, pd.Series]
+        A tuple containing the colourmap, the normalisation function
+        and the normalised colour series
+    """
 
     cmap = get_cmap(colourmap).copy()
     if hide_overflow:
@@ -153,25 +249,30 @@ def plot_hexagons(
     colourmap: Colormap,
     title: Optional[str] = None
 ) -> Tuple[plt.Figure, plt.Axes]:
-    """_summary_
+    """
+    Plots the map of spots for the spatial expression data as hexagons.
+    Validity and colours are based on the provided series. 
+
+    Indices within the series and the dataframe should match.
 
     Parameters
     ----------
     spatial : pd.DataFrame
-        _description_
+        The dataframe containing spatial information about the spots
     validity : pd.Series
-        _description_
+        A series of booleans determining whether the spots are to be
+        considered valid
     colours : pd.Series
-        _description_
+        A series of floats corresponding to the colours in the colourmap
     colourmap : Colormap
-        _description_
-    title : Optional[str], optional
-        _description_, by default None
+        The matplotlib colourmap to be used
+    title : str, optional
+        A title for the figure or None for no title, by default None
 
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
-        _description_
+        The matplotlib Figure and Axes objects of the resulting plot
     """
 
     # Cartesian coordinates

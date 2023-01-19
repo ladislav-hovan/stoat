@@ -369,7 +369,8 @@ class Stoat:
             or 'sum_all' for the sum of all genes, or None to colour all
             valid cells the same colour, by default None
         colourmap : str, optional
-            The matplotlib colourmap to use, by default 'Greens'
+            The name of the matplotlib colourmap to use, by default 
+            'Greens'
         label : str, optional
             The label for the colourbar or None for no label, by default
             None
