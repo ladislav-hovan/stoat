@@ -5,7 +5,7 @@
 import pandas as pd
 import numpy as np
 
-from typing import Optional, Tuple, Mapping
+from typing import Optional, Tuple, Mapping, Union, Callable
 
 import matplotlib.pyplot as plt
 
@@ -20,7 +20,7 @@ def plot_spot_expression(
     spatial: pd.DataFrame,
     expression: pd.DataFrame,
     validity: str = 'Success',
-    colour_from: Optional[str] = None,
+    colour_from: Optional[Union[str, Callable]] = None,
     colourmap: str = 'Greens',
     label: Optional[str] = None,
     title: Optional[str] = None,
@@ -41,10 +41,10 @@ def plot_spot_expression(
     validity : str, optional
         The column name in the spatial dataframe to be used to determine
         validity, by default 'Success'
-    colour_from : str, optional
-        The name of the gene that the colouring will be based on,
-        or 'sum_all' for the sum of all genes, or None to colour all
-        valid cells the same colour, by default None
+    colour_from : Union[str, Callable], optional
+        The name of the gene that the colouring will be based on, or a 
+        function to be applied to every spot (for example sum), or None 
+        to colour all valid cells the same colour, by default None
     colourmap : str, optional
         The name of the matplotlib colourmap to use, by default 
         'Greens'
@@ -65,11 +65,11 @@ def plot_spot_expression(
 
     # Create a colourmap and assign colours
     if colour_from is not None:
-        # Sum all the genes or use a specific one
-        if colour_from == 'sum_all':
-            colour_vals = expression.sum(axis=1)
-        else:
+        # Use a specific gene or a summary function
+        if type(colour_from) == str:
             colour_vals = expression[colour_from]
+        else:
+            colour_vals = expression.apply(colour_from, axis=1)
         cmap, norm, colours = generate_cmap_and_colours(colour_vals, colourmap,
             hide_overflow)
     else:

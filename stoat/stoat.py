@@ -105,7 +105,7 @@ class Stoat:
 
         # Load raw count matrix first
         df = pd.read_csv(matrix_path, names=['Feature ID', 'Barcode ID', 
-            'Count'], skiprows=2, sep=' ')
+            'Count'], comment='%', sep=' ')
         df.drop(0, inplace=True)  # First row contains total numbers of 
                                   # features/barcodes/matrix points
         df['Feature ID'] = df['Feature ID'].astype(int)
@@ -364,10 +364,11 @@ class Stoat:
         averaged : bool, optional
             Whether to use the averaged expression data instead of
             the original, by default False
-        colour_from : str, optional
-            The name of the gene that the colouring will be based on,
-            or 'sum_all' for the sum of all genes, or None to colour all
-            valid cells the same colour, by default None
+        colour_from : Union[str, Callable], optional
+            The name of the gene that the colouring will be based on, 
+            or a function to be applied to every spot (for example sum), 
+            or None to colour all valid cells the same colour, 
+            by default None
         colourmap : str, optional
             The name of the matplotlib colourmap to use, by default 
             'Greens'
