@@ -9,7 +9,7 @@ from typing import Optional, Tuple, Mapping, Union, Callable
 
 import matplotlib.pyplot as plt
 
-from matplotlib.patches import RegularPolygon
+from matplotlib.patches import RegularPolygon, Circle
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Colormap, Normalize
 
@@ -96,8 +96,6 @@ def plot_spot_expression(
         cb = plt.colorbar(sm, ax=ax, fraction=0.1, shrink=0.5, pad=0.02)
         cb.ax.tick_params(labelsize=20)
         cb.set_label(label, size=30)
-    
-    plt.show()
 
     if ax_create:
         return fig, ax
@@ -192,10 +190,54 @@ def plot_spot_classification(
         ax.legend(fontsize=16, loc='upper left', bbox_to_anchor=(0, 0), 
             handlelength=0.7)
 
-    plt.show()
-
     if ax_create:
         return fig, ax
+
+
+def add_circle(
+    x: float,
+    y: float,
+    ax: Optional[plt.Axes] = None,
+    radius: float = 1.5,
+    colour: str = 'C3',
+    label: Optional[str] = None,
+    fontsize: int = 25
+) -> None:
+    """
+    Creates a circle at coordinates obtained after transformation of 
+    the provided ones.
+
+    Parameters
+    ----------
+    x : float
+        The x coordinate to be transformed
+    y : float
+        The y coordinate to be transformed
+    ax : plt.Axes, optional
+        The Axes object where to plot the circle or None to get current
+        Axes, by default None
+    radius : float, optional
+        The radius of the circle, by default 1.5
+    colour : str, optional
+        The colour of the circle, by default 'C3'
+    label : Optional[str], optional
+        The label inside the circle or None for no label, by default 
+        None
+    fontsize : float, optional
+        The font size for the label, by default 25
+    """
+
+
+    if ax is None:
+        ax = plt.gca()
+
+    coords = convert_coordinates(x, y)
+
+    ax.add_patch(Circle(coords, radius=radius, color=colour, lw=3, fill=False))
+
+    if label is not None:
+        ax.text(*coords, label, color=colour, ha='center', va='center', 
+            size=fontsize)
 
 
 def convert_coordinates(
