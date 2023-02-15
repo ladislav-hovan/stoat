@@ -377,6 +377,10 @@ class Stoat:
             None
         title : str, optional
             A title for the figure or None for no title, by default None
+        hide_overflow : bool, optional
+            Whether to restrict the range to the bottom 99% of values 
+            and colour the top 1% with a different colour, by default 
+            True
 
         Returns
         -------
@@ -384,8 +388,7 @@ class Stoat:
             The matplotlib Figure and Axes objects of the resulting plot
         """
 
-        # TODO: Add comments, update description
-
+        # Choose the correct validity column based on averaging
         if averaged:
             expr_df = self.avg_expression
             validity = 'Valid'
@@ -393,8 +396,9 @@ class Stoat:
             expr_df = self.expression
             validity = 'Success'
 
+        # Call the corresponding plotting function, get new figure and axes
         return plot_spot_expression(self.spatial, expr_df, validity, 
-            colour_from, colourmap, label, title, hide_overflow)
+            colour_from, colourmap, label, title, hide_overflow, ax=None)
 
 
     ### Network calculation ###
@@ -420,6 +424,7 @@ class Stoat:
         self,
         spot_barcodes: Union[str, Iterable[str], None] = None,
         save_panda: bool = False,
+        save_degrees: bool = False,
         overwrite_old = True
     ) -> None:
 
@@ -448,29 +453,41 @@ class Stoat:
 
         for bc in barcodes:
             # Names of output files
-            panda_outfile = (self.output_dir + 'panda_' + '{}.txt'.format(bc))
-            stoat_outfile = (self.output_dir + 'stoat_' + '{}.txt'.format(bc))
+            panda_outfile = (self.output_dir + 'panda_' + f'{bc}.txt')
+            stoat_outfile = (self.output_dir + 'stoat_' + f'{bc}.txt')
 
             # Check if we're overwriting
             if not overwrite_old and (exists(stoat_outfile) or 
                 (save_panda and exists(panda_outfile))):
-                print ('Skipping spot {} because the STOAT or '.format(bc) + 
+                print (f'Skipping spot {bc} because the STOAT or ' + 
                     'PANDA file already exists in the target directory')
                 continue
 
-            print ('Calculating the STOAT network for spot {}'.format(bc))
+            print (f'Calculating the STOAT network for spot {bc}')
 
+            # PANDA network with the current spot missing
             panda_obj = Panda(panda_input.drop(bc, axis=1), self.motif_prior, 
                 self.ppi_prior, computing=self.computing)
 
             if save_panda:
                 print ('Saving the intermediate PANDA network to ' + 
-                    '{}'.format(panda_outfile))
+                    f'{panda_outfile}')
                 panda_obj.save_panda_results(panda_outfile)
             
             panda_net = panda_obj.panda_network
 
+            # Equation for deriving the spot-specific network
             stoat_net = n_spots * (self.panda_network - panda_net) + panda_net
 
-            print ('Saving the STOAT network to {}'.format(stoat_outfile))
+            print (f'Saving the STOAT network to {stoat_outfile}')
             stoat_net.to_csv(stoat_outfile, sep='\t')
+
+            if save_degrees:
+                # Names of output files
+                in_outfile = (self.output_dir + 'indegree_' + f'{bc}.txt')
+                out_outfile = (self.output_dir + 'outdegree_' + f'{bc}.txt')
+
+                print (f'Saving the indegrees to {in_outfile}')
+                stoat_net.sum().to_csv(in_outfile, sep='\t')
+                print (f'Saving the outdegrees to {out_outfile}')
+                stoat_net.sum(axis=1).to_csv(out_outfile, sep='\t')

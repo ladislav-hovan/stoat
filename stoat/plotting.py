@@ -24,7 +24,8 @@ def plot_spot_expression(
     colourmap: str = 'Greens',
     label: Optional[str] = None,
     title: Optional[str] = None,
-    hide_overflow: bool = True
+    hide_overflow: bool = True,
+    ax: Optional[plt.Axes] = None
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots the map of spots for the spatial expression data. It can 
@@ -56,11 +57,15 @@ def plot_spot_expression(
     hide_overflow : bool, optional
         Whether to restrict the range to the bottom 99% of values and
         colour the top 1% with a different colour, by default True
+    ax : plt.Axes, optional
+        The axes to plot on or None to generate new ones, by default 
+        None
 
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
-        The matplotlib Figure and Axes objects of the resulting plot
+        The matplotlib Figure and Axes objects of the resulting plot,
+        only returned if ax was not provided
     """
 
     # Create a colourmap and assign colours
@@ -71,14 +76,18 @@ def plot_spot_expression(
         else:
             colour_vals = expression.apply(colour_from, axis=1)
         cmap, norm, colours = generate_cmap_and_colours(colour_vals, colourmap,
-            hide_overflow)
+            None, hide_overflow)
     else:
         # All spots get the same colour
         cmap = get_cmap(colourmap)
         colours = pd.Series(1, index=spatial.index)
 
     # Create the basic hexagonal plot
-    fig, ax = plot_hexagons(spatial, spatial[validity], colours, cmap, title)
+    ax_create = ax is None
+    output = plot_hexagons(spatial, spatial[validity], colours, cmap, title,
+        ax)
+    if ax_create:
+        fig, ax = output
 
     if colour_from is not None:
         # Add a colourbar
@@ -88,9 +97,10 @@ def plot_spot_expression(
         cb.ax.tick_params(labelsize=20)
         cb.set_label(label, size=30)
     
-    fig.show()
+    plt.show()
 
-    return fig, ax
+    if ax_create:
+        return fig, ax
 
 
 def plot_spot_classification(
@@ -100,7 +110,9 @@ def plot_spot_classification(
     colourmap: str = 'Set2',
     legend: bool = True,
     labels: Optional[Mapping] = None,
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    n_classes: Optional[int] = None,
+    ax: Optional[plt.Axes] = None
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots the map of spots coloured by their classification.
@@ -125,26 +137,38 @@ def plot_spot_classification(
         for the legend or None to keep the names, by default None
     title : str, optional
         A title for the figure or None for no title, by default None
+    ax : plt.Axes, optional
+        The axes to plot on or None to generate new ones, by default 
+        None
 
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
-        The matplotlib Figure and Axes objects of the resulting plot
+        The matplotlib Figure and Axes objects of the resulting plot,
+        only returned if ax was not provided
     """
 
+    # Use only classes present in valid spots, order by frequency
+    classes_valid = classes.loc[spatial[validity]]
+    classes_list = list(classes_valid.value_counts().index)
     # If the classes are not integers, define a new series
-    classes_list = list(classes.unique())
     if classes.dtype == 'int64':
-        classes_int = classes
+        classes_int = classes_valid
     else:
-        classes_int = classes.apply(lambda x: classes_list.index(x))
+        classes_int = classes_valid.apply(lambda x: classes_list.index(x))
 
     # Create a colourmap and assign colours
+    if n_classes is None:
+        n_classes = len(classes_list)
     cmap, norm, colours = generate_cmap_and_colours(classes_int, colourmap,
-        hide_overflow=False)
+        cm_limits=(-0.5, n_classes-0.5), hide_overflow=False)
 
     # Create the basic hexagonal plot
-    fig, ax = plot_hexagons(spatial, spatial[validity], colours, cmap, title)
+    ax_create = ax is None
+    output = plot_hexagons(spatial, spatial[validity], colours, cmap, title,
+        ax)
+    if ax_create:
+        fig, ax = output
 
     # Add the legend if required
     if legend:
@@ -160,17 +184,18 @@ def plot_spot_classification(
             spot_spatial = spatial.loc[spot_index]
             x,y = convert_coordinates(spot_spatial['xInd'], 
                 spot_spatial['yInd'])
-            hex = RegularPolygon((x,y), numVertices=6, radius=2/3,
+            hex_spot = RegularPolygon((x,y), numVertices=6, radius=2/3,
                 orientation=np.radians(120), facecolor=cmap(norm(i)), 
                 edgecolor='gray', label=labels[classes_list[i]])
-            ax.add_patch(hex)
+            ax.add_patch(hex_spot)
         # Create the legend
         ax.legend(fontsize=16, loc='upper left', bbox_to_anchor=(0, 0), 
             handlelength=0.7)
 
-    fig.show()
+    plt.show()
 
-    return fig, ax
+    if ax_create:
+        return fig, ax
 
 
 def convert_coordinates(
@@ -194,7 +219,6 @@ def convert_coordinates(
         A tuple containing the converted x and y coordinates
     """
 
-
     # Vertical cartesian coordinates
     new_y = -x
     # Horizontal cartesian coordinates
@@ -206,7 +230,8 @@ def convert_coordinates(
 def generate_cmap_and_colours(
     values: pd.Series,
     colourmap: str,
-    hide_overflow = True
+    cm_limits: Optional[Tuple[Optional[float], Optional[float]]] = None,
+    hide_overflow: bool = True
 ) -> Tuple[Colormap, Normalize, pd.Series]:
     """
     Generates the colourmap, the normalisation function and the 
@@ -218,9 +243,13 @@ def generate_cmap_and_colours(
         The numerical values to be used for colour assignment
     colourmap : str
         The name of the matplotlib colourmap to use
+    cm_limits : Tuple[Optional[float], Optional[float]], optional
+        The upper and lower limits of the colourmap, inferred from
+        the data if None, by default None
     hide_overflow : bool, optional
         Whether to restrict the range to the bottom 99% of values and
-        colour the top 1% with a different colour, by default True
+        colour the top 1% with a different colour, overwrites the upper
+        limit if provided, by default True
 
     Returns
     -------
@@ -230,13 +259,20 @@ def generate_cmap_and_colours(
     """
 
     cmap = get_cmap(colourmap).copy()
+
+    if cm_limits is None:
+        cm_limits = (None, None)
+    vmin_value, vmax_value = cm_limits
+    if vmin_value is None:
+        vmin_value = min(values)
+    if vmax_value is None:
+        vmax_value = max(values)
+        
     if hide_overflow:
         # Create a colourmap with an overflow value for the top 1%
         cmap.set_over('navy')
         vmax_value = sorted(values)[int(0.99 * len(values))]
-        norm = Normalize(vmin=min(values), vmax=vmax_value)
-    else:
-        norm = Normalize(vmin=min(values), vmax=max(values))
+    norm = Normalize(vmin=vmin_value, vmax=vmax_value)
     colours = values.apply(lambda x: norm(x))
 
     return cmap, norm, colours
@@ -247,7 +283,8 @@ def plot_hexagons(
     validity: pd.Series,
     colours: pd.Series,
     colourmap: Colormap,
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    ax: Optional[plt.Axes] = None
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots the map of spots for the spatial expression data as hexagons.
@@ -268,18 +305,24 @@ def plot_hexagons(
         The matplotlib colourmap to be used
     title : str, optional
         A title for the figure or None for no title, by default None
+    ax : plt.Axes, optional
+        The axes to plot on or None to generate new ones, by default 
+        None
 
     Returns
     -------
     Tuple[plt.Figure, plt.Axes]
-        The matplotlib Figure and Axes objects of the resulting plot
+        The matplotlib Figure and Axes objects of the resulting plot,
+        only returned if ax was not provided
     """
 
     # Cartesian coordinates
     hcoord, vcoord = convert_coordinates(spatial['xInd'], spatial['yInd'])
 
     # Create a figure
-    fig, ax = plt.subplots(1, figsize=(16, 16), tight_layout=True)
+    ax_create = ax is None
+    if ax_create:
+        fig, ax = plt.subplots(1, figsize=(16, 16), tight_layout=True)
     ax.set_aspect('equal')
     ax.set_axis_off()
 
@@ -295,10 +338,10 @@ def plot_hexagons(
             facecolor = 'gray'
         else:
             facecolor = colourmap(c)
-        hex = RegularPolygon((x,y), numVertices=6, radius=2/3,
+        hex_spot = RegularPolygon((x,y), numVertices=6, radius=2/3,
             orientation=np.radians(120), facecolor=facecolor, 
             edgecolor='gray')
-        ax.add_patch(hex)
+        ax.add_patch(hex_spot)
 
     # Adjust the limits
     ax.set_xlim(min(hcoord)-1, max(hcoord)+1)
@@ -307,7 +350,6 @@ def plot_hexagons(
     if title is not None:
         # Add a figure title
         ax.set_title(title, size=40)
-    
-    fig.show()
 
-    return fig, ax
+    if ax_create:
+        return fig, ax

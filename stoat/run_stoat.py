@@ -1,4 +1,4 @@
-# !python
+#!/usr/bin/env python
 
 # This is supposed to become a general purpose script for running
 # STOAT from the command line
