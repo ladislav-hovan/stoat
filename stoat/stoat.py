@@ -82,6 +82,8 @@ class Stoat:
             raise NotImplementedError('Computing type not supported: ' + 
                 '{}'.format(self.computing))
 
+        
+
 
     ### Dataset loading ###
     def load_expression_raw(
@@ -223,7 +225,6 @@ class Stoat:
         self,
         features: Optional[str] = None,
         annotations: Optional[str] = None,
-        follow_prior: bool = True
     ) -> None:
 
 

@@ -5,7 +5,7 @@
 import pandas as pd
 import numpy as np
 
-from typing import Optional, Tuple, Mapping, Union, Callable
+from typing import Optional, Tuple, Mapping, Union, Callable, Iterable
 
 import matplotlib.pyplot as plt
 
@@ -73,7 +73,7 @@ def plot_spot_expression(
         # Use a specific gene or a summary function
         if type(colour_from) == str:
             colour_vals = expression[colour_from]
-        else:
+        else:  # TODO: Explicitly check callable
             colour_vals = expression.apply(colour_from, axis=1)
         cmap, norm, colours = generate_cmap_and_colours(colour_vals, colourmap,
             None, hide_overflow)
@@ -109,6 +109,7 @@ def plot_spot_classification(
     legend: bool = True,
     labels: Optional[Mapping] = None,
     title: Optional[str] = None,
+    ordering: Optional[Iterable[str]] = None,
     n_classes: Optional[int] = None,
     ax: Optional[plt.Axes] = None
 ) -> Tuple[plt.Figure, plt.Axes]:
@@ -135,6 +136,14 @@ def plot_spot_classification(
         for the legend or None to keep the names, by default None
     title : str, optional
         A title for the figure or None for no title, by default None
+    ordering : Iterable[str], optional
+        An ordering of the classes or None to order by the overall
+        share, by default None
+    n_classes: int, optional
+        The number of classes to be considered for colour generation,
+        useful to make plots with different number of actual classes
+        consistent, None means the number of actual classes will be
+        used, by default None
     ax : plt.Axes, optional
         The axes to plot on or None to generate new ones, by default 
         None
@@ -146,9 +155,14 @@ def plot_spot_classification(
         only returned if ax was not provided
     """
 
-    # Use only classes present in valid spots, order by frequency
+    # Use only classes present in valid spots
     classes_valid = classes.loc[spatial[validity]]
-    classes_list = list(classes_valid.value_counts().index)
+    if ordering is None:
+        # Order by frequency
+        classes_list = list(classes_valid.value_counts().index)
+    else:
+        # Preserve the provided ordering
+        classes_list = [i for i in ordering if i in classes_valid.unique()]
     # If the classes are not integers, define a new series
     if classes.dtype == 'int64':
         classes_int = classes_valid
@@ -313,6 +327,7 @@ def generate_cmap_and_colours(
     if hide_overflow:
         # Create a colourmap with an overflow value for the top 1%
         cmap.set_over('navy')
+        # TODO: Dispose of the magic numbers
         vmax_value = sorted(values)[int(0.99 * len(values))]
     norm = Normalize(vmin=vmin_value, vmax=vmax_value)
     colours = values.apply(lambda x: norm(x))
@@ -391,6 +406,7 @@ def plot_hexagons(
 
     if title is not None:
         # Add a figure title
+        # TODO: Make sure it scales
         ax.set_title(title, size=40)
 
     if ax_create:
