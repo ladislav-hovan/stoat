@@ -78,9 +78,10 @@ class Stoat:
             _description_
         """
 
-        if self.computing not in ['cpu', 'gpu']:
-            raise NotImplementedError('Computing type not supported: ' + 
-                '{}'.format(self.computing))
+        computing_allowed = ['cpu', 'gpu']
+        if self.computing not in computing_allowed:
+            raise NotImplementedError('Computing type not supported: '
+                f'{self.computing}, use one of {computing_allowed}')
 
         
 
@@ -218,7 +219,7 @@ class Stoat:
             self.expression.update(fill_df, overwrite=False)
         else:
             raise NotImplementedError('Unrecognised NaN removal method: ' + 
-                '{}'.format(method) + '\nOptions are: fill_zero, fill_random')
+                f'{method}\nOptions are: fill_zero, fill_random')
 
 
     def ensure_compatibility(
@@ -251,10 +252,11 @@ class Stoat:
                 'expression data, load it from a saved frame or raw counts ' +
                 'or provide a PANDA object during object creation')
 
-        print ('The prior contains {} genes'.format(len(prior_genes)))
-        print ('The expression contains {} genes'.format(len(expr_genes)))
-        print ('These two sets have {} gene names in common'.format(
-            len(prior_genes.intersection(expr_genes))))
+        print (f'The prior contains {len(prior_genes)} genes')
+        print (f'The expression contains {len(expr_genes)} genes')
+        print ('These two sets have '
+            f'{len(prior_genes.intersection(expr_genes))}'
+            ' gene names in common')
 
         if self.features is None and annotations is None:
             print ('No features or annotations have been provided')
@@ -342,7 +344,7 @@ class Stoat:
                 get_distance_to_neighbours(row.name, self.spatial).apply(
                 calculate_gaussian_fixed).sum(), axis=0), axis=1)
         else:
-            raise NotImplementedError('Unrecognised kernel: {}'.format(kernel)
+            raise NotImplementedError(f'Unrecognised kernel: {kernel}'
                 + '\nOptions are: uniform, gaussian')
 
 
@@ -454,8 +456,8 @@ class Stoat:
 
         for bc in barcodes:
             # Names of output files
-            panda_outfile = (self.output_dir + 'panda_' + f'{bc}.txt')
-            stoat_outfile = (self.output_dir + 'stoat_' + f'{bc}.txt')
+            panda_outfile = (self.output_dir + f'panda_{bc}.txt')
+            stoat_outfile = (self.output_dir + f'stoat_{bc}.txt')
 
             # Check if we're overwriting
             if not overwrite_old and (exists(stoat_outfile) or 
@@ -485,8 +487,8 @@ class Stoat:
 
             if save_degrees:
                 # Names of output files
-                in_outfile = (self.output_dir + 'indegree_' + f'{bc}.txt')
-                out_outfile = (self.output_dir + 'outdegree_' + f'{bc}.txt')
+                in_outfile = (self.output_dir + f'indegree_{bc}.txt')
+                out_outfile = (self.output_dir + f'outdegree_{bc}.txt')
 
                 print (f'Saving the indegrees to {in_outfile}')
                 stoat_net.sum().to_csv(in_outfile, sep='\t')
