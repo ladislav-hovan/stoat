@@ -235,7 +235,7 @@ class Stoat:
         if annotations is not None:
             ann_df = pd.read_csv(annotations, sep='\t')
 
-        if self.motif_prior is not None:
+        if type(self.motif_prior) == str:
             # Names are chosen for compatibility with PANDA later
             motif_df = pd.read_csv(self.motif_prior, sep='\t', header=None,
                 names=['source', 'target', 'weight'])
@@ -268,6 +268,18 @@ class Stoat:
         expr_genes = set(self.expression.columns)
         motif_df = motif_df[motif_df['target'].isin(expr_genes)]
         self.motif_prior = motif_df
+
+
+    def normalise_library_size(
+        self
+    ) -> None:
+        
+
+        size_factors = self.expression.sum(axis=1)
+        size_factors /= size_factors.mean()
+        self.expression = self.expression.divide(size_factors, axis=0)
+        self.avg_expression /= self.avg_expression.divide(size_factors, axis=0)
+        self.size_factors = size_factors
 
 
     def average_expression(
