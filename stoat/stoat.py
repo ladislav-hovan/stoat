@@ -262,11 +262,12 @@ class Stoat:
             print ('No features or annotations have been provided')
             print ('Matching will be done based purely on current names')
 
-            to_drop = list(expr_genes - prior_genes)
-            self.expression.drop(to_drop, axis=1, inplace=True)
-            motif_df = motif_df[motif_df['target'].isin(
-                self.expression.columns)]
-            self.motif_prior = motif_df
+        to_drop = list(expr_genes - prior_genes)
+        self.expression.drop(to_drop, axis=1, inplace=True)
+        self.avg_expression.drop(to_drop, axis=1, inplace=True)
+        expr_genes = set(self.expression.columns)
+        motif_df = motif_df[motif_df['target'].isin(expr_genes)]
+        self.motif_prior = motif_df
 
 
     def average_expression(
