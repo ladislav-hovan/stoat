@@ -63,9 +63,12 @@ def weight_by_distance(
         A weighted sum of expression values from the row
     """
 
-    neigh_ind = spatial.loc[row.name]['Neighbours']
+    # Take the valid neighbour indices
+    neigh_ind = spatial.loc[row.name]['ValNeighbours']
+    # Input the distance to valid neighbours into the weighting function
     weighted_expr = expression.loc[neigh_ind].multiply(
         get_distance_to_neighbours(row.name, spatial).apply(function), axis=0)
+    # Sum up the contribution from all the valid neighbours
     weighted_sum = weighted_expr.sum()
 
     return weighted_sum
@@ -91,7 +94,9 @@ def get_distance_to_neighbours(
         The distances to the neighbours of the given spot
     """
 
-    neigh_ind = spatial.loc[spotname]['Neighbours']
+    # Take the valid neighbour indices
+    neigh_ind = spatial.loc[spotname]['ValNeighbours']
+    # Calculate the 2D cartesian distances using scaled X/Y indices
     distance = ((spatial.loc[neigh_ind]['xIndSc'] - 
         spatial.loc[spotname]['xIndSc'])**2 +
         (spatial.loc[neigh_ind]['yIndSc'] - 

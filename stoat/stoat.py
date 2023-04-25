@@ -278,7 +278,7 @@ class Stoat:
         size_factors = self.expression.sum(axis=1)
         size_factors /= size_factors.mean()
         self.expression = self.expression.divide(size_factors, axis=0)
-        self.avg_expression /= self.avg_expression.divide(size_factors, axis=0)
+        self.avg_expression = self.avg_expression.divide(size_factors, axis=0)
         self.size_factors = size_factors
 
 
@@ -294,7 +294,7 @@ class Stoat:
 
 
         if self.spatial is None:
-            raise RuntimeError('The averaging requires spatial information, ' +
+            raise RuntimeError('The averaging requires spatial information, '
                 'but none has been provided')
 
         if distance is None:
@@ -313,15 +313,16 @@ class Stoat:
 
         # Count the number of neighbours: total and (in)valid
         self.spatial['NumNeigh'] = self.spatial['Neighbours'].apply(len)
-        self.spatial['NumValNeigh'] = self.spatial['Neighbours'].apply(
-            lambda x: len([i for i in x if self.spatial.loc[i]['Success']]))
+        self.spatial['ValNeighbours'] = self.spatial['Neighbours'].apply(
+            lambda x: [i for i in x if self.spatial.loc[i]['Success']])
+        self.spatial['NumValNeigh'] = self.spatial['ValNeigh'].apply(len)
         self.spatial['NumInvNeigh'] = (self.spatial['NumNeigh'] -
             self.spatial['NumValNeigh'])
 
-        # TODO: Make sure the averaged spot is invalid if the original
-        # one was invalid (not assured atm)
         # Set the validity column based on the invalid neighbours
-        self.spatial['Valid'] = self.spatial['NumInvNeigh'] <= max_invalid
+        # Also invalidate if the spot itself was invalid
+        self.spatial['Valid'] = self.spatial['Success'] & (
+            self.spatial['NumInvNeigh'] <= max_invalid)
         # Exclude edges too
         if edges_invalid:
             if distance is not None:
@@ -335,15 +336,16 @@ class Stoat:
             self.spatial['Valid'] = self.spatial['Valid'] & (max_neigh == 
                 self.spatial['NumNeigh'])
 
-        # TODO: Make sure the kernels only consider valid neighbours
+        # All of the kernels exclude points where the measurements were
+        # invalid (i.e. 'Success' is False)
         if kernel == 'uniform':
             # The contribution of every cell to the average is independent of
             # the distance from the central cell
             sum_exp = self.expression.apply(lambda row: 
                 self.expression.loc[self.spatial.loc[row.name]
-                ['Neighbours']].sum(), axis=1)
+                ['ValNeighbours']].sum(), axis=1)
             self.avg_expression = sum_exp.apply(lambda x: 
-                x / self.spatial['NumNeigh'])
+                x / self.spatial['NumValNeigh'])
         elif kernel == 'gaussian':
             # The contribution is based on the distance from the central cell
             # and decreases proportionally to exp(-r**2)
@@ -358,7 +360,7 @@ class Stoat:
                 calculate_gaussian_fixed).sum(), axis=0), axis=1)
         else:
             raise NotImplementedError(f'Unrecognised kernel: {kernel}'
-                + '\nOptions are: uniform, gaussian')
+                '\nOptions are: uniform, gaussian')
 
 
     ### Data plotting ###
