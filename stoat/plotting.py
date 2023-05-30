@@ -406,8 +406,7 @@ def plot_hexagons(
 
     if title is not None:
         # Add a figure title
-        # TODO: Make sure it scales
-        ax.set_title(title, size=40)
+        ax.set_title(title, size=ax.get_window_extent().height / 40)
 
     if ax_create:
         return fig, ax
