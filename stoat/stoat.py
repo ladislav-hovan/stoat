@@ -7,13 +7,19 @@ import numpy as np
 
 import os.path
 
+from io import BytesIO
+
 from netZooPy.panda.panda import Panda
+
+from biomart import BiomartServer
 
 from stoat.plotting import *
 from stoat.functions import *
 
 COMPUTING_TYPE = Literal['cpu', 'gpu']
 EXTENSION = Literal['tsv', 'feather', 'parquet']
+
+ENSEMBL_URL = 'http://www.ensembl.org/biomart/'
 
 ### Class definition ###
 class Stoat:
@@ -131,10 +137,13 @@ class Stoat:
         # Shift because barcodes are 1-indexed
         bar_dict = {ind+1: val for ind,val in enumerate(barcodes)}  
         df2.index = [bar_dict[i] for i in df2.index]
+        # Fill in possible missing barcodes with NaNs
+        df2 = df2.reindex(index=barcodes)
         features = np.loadtxt(features_path, dtype=str, delimiter='\t')
         # Shift because features are 1-indexed
         feat_dict = {ind+1: val[0] for ind,val in enumerate(features)}
         df2.columns = [feat_dict[i] for i in df2.columns]
+        # No need to fill missing features, they are just excluded
 
         self.expression = df2
         self.avg_expression = df2.copy()
@@ -184,9 +193,19 @@ class Stoat:
             _description_
         """
 
+        # Check if there is a header
+        f = open(spatial_path, 'r')
+        first_line = f.readline()
+        # If there is not a header, the last character on the first line 
+        # should be a digit (part of pixel position in full resolution image)
+        # The last character is newline, so second last is what counts
+        if first_line[-2].isdigit():
+            header_row = None
+        else:
+            header_row = 0
         # Load spatial data
         coords = pd.read_csv(spatial_path, index_col=0, names=['Success', 
-            'xInd', 'yInd', 'xPos', 'yPos'])
+            'xInd', 'yInd', 'xPos', 'yPos'], header=header_row)
         # Adjust typing
         coords['Success'] = coords['Success'].astype(bool)
         coords[['xInd', 'yInd']] = coords[['xInd', 'yInd']].astype(int)
@@ -230,6 +249,43 @@ class Stoat:
         else:
             raise NotImplementedError('Unrecognised NaN removal method: ' + 
                 f'{method}\nOptions are: fill_zero, fill_random')
+        # Replace the average expression after this function has been called
+        self.avg_expression = self.expression.copy()
+
+
+    def drop_deprecated(
+        self
+    ) -> None:
+        
+
+        deprecated = [i for i in self.expression.columns if 
+            i[:11] == 'DEPRECATED_']
+        if len(deprecated) > 0:
+            print (f'Dropping {len(deprecated)} deprecated columns')
+            self.expression.drop(columns=deprecated, inplace=True)
+            self.avg_expression.drop(columns=deprecated, inplace=True)
+        else:
+            print ('No deprecated columns found')
+
+
+    def filter_genes(
+        self,
+        drop_non_protein_coding: bool = True
+    ) -> None:
+        
+
+        if drop_non_protein_coding:
+            server = BiomartServer(ENSEMBL_URL)
+            ensembl = server.datasets['hsapiens_gene_ensembl']
+            to_retrieve = ['ensembl_gene_id', 'gene_biotype']
+            response = ensembl.search({'attributes': to_retrieve})
+            ens_to_type = pd.read_csv(BytesIO(response.content), sep='\t', 
+                names=to_retrieve).set_index('ensembl_gene_id')
+            to_drop = [i for i in self.expression.columns 
+                if i not in ens_to_type.index
+                or ens_to_type.loc[i]['gene_biotype'] != 'protein_coding']
+            self.expression.drop(columns=to_drop, inplace=True)
+            self.avg_expression.drop(columns=to_drop, inplace=True)
 
 
     def ensure_compatibility(
@@ -325,7 +381,7 @@ class Stoat:
         self.spatial['NumNeigh'] = self.spatial['Neighbours'].apply(len)
         self.spatial['ValNeighbours'] = self.spatial['Neighbours'].apply(
             lambda x: [i for i in x if self.spatial.loc[i]['Success']])
-        self.spatial['NumValNeigh'] = self.spatial['ValNeigh'].apply(len)
+        self.spatial['NumValNeigh'] = self.spatial['ValNeighbours'].apply(len)
         self.spatial['NumInvNeigh'] = (self.spatial['NumNeigh'] -
             self.spatial['NumValNeigh'])
 
@@ -356,6 +412,7 @@ class Stoat:
                 ['ValNeighbours']].sum(), axis=1)
             self.avg_expression = sum_exp.apply(lambda x: 
                 x / self.spatial['NumValNeigh'])
+            self.avg_expression.fillna(0, inplace=True)
         elif kernel == 'gaussian':
             # The contribution is based on the distance from the central cell
             # and decreases proportionally to exp(-r**2)
@@ -368,6 +425,7 @@ class Stoat:
             self.avg_expression = sum_exp.apply(lambda row: row.divide(
                 get_distance_to_neighbours(row.name, self.spatial).apply(
                 calculate_gaussian_fixed).sum(), axis=0), axis=1)
+            self.avg_expression.fillna(0, inplace=True)
         else:
             raise NotImplementedError(f'Unrecognised kernel: {kernel}'
                 '\nOptions are: uniform, gaussian')
@@ -441,8 +499,8 @@ class Stoat:
         """
         
         # Run the PANDA calculation using the provided priors
-        panda_obj = Panda(self.avg_expression.T, self.motif_prior, 
-            self.ppi_prior, computing=self.computing)
+        panda_obj = Panda(self.avg_expression.loc[self.spatial['Valid']].T, 
+            self.motif_prior, self.ppi_prior, computing=self.computing)
 
         self.panda_network = panda_obj.panda_network
         del panda_obj
@@ -450,7 +508,7 @@ class Stoat:
 
     def save_dataframe(
         self,
-        df: pd.DataFrame,
+        df: Union[pd.DataFrame, pd.Series],
         base_filename: str
     ) -> None:
         
@@ -458,9 +516,13 @@ class Stoat:
         if self.extension == 'tsv':
             df.to_csv(f'{base_filename}.tsv', sep='\t')
         elif self.extension == 'feather':
+            # Resetting the index will convert to DataFrame
             df.reset_index().to_feather(f'{base_filename}.feather')
         elif self.extension == 'parquet':
-            df.to_parquet(f'{base_filename}.parquet')
+            if type(df) == pd.DataFrame:
+                df.to_parquet(f'{base_filename}.parquet')
+            else:
+                df.to_frame().to_parquet(f'{base_filename}.parquet')
         # Options not listed here should not be possible (checked during
         # class creation)
 
@@ -496,7 +558,7 @@ class Stoat:
             # An Iterable of barcodes
             barcodes = spot_barcodes
 
-        panda_input = self.avg_expression.T
+        panda_input = self.avg_expression.loc[self.spatial['Valid']].T
 
         n_spots = len(panda_input.columns)
 
@@ -537,7 +599,11 @@ class Stoat:
                 in_outfile = (self.output_dir + f'indegree_{bc}')
                 out_outfile = (self.output_dir + f'outdegree_{bc}')
 
-                print (f'Saving the indegrees to {in_outfile}')
-                self.save_dataframe(stoat_net.sum(), in_outfile)
-                print (f'Saving the outdegrees to {out_outfile}')
-                self.save_dataframe(stoat_net.sum(axis=1), out_outfile)
+                print (f'Saving the indegrees to '
+                    f'{in_outfile}.{self.extension}')
+                self.save_dataframe(stoat_net.sum().rename('Indegrees'), 
+                    in_outfile)
+                print ('Saving the outdegrees to '
+                    f'{out_outfile}.{self.extension}')
+                self.save_dataframe(stoat_net.sum(axis=1).rename('Outdegrees'), 
+                    out_outfile)
