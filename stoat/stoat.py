@@ -506,6 +506,15 @@ class Stoat:
         del panda_obj
 
 
+    def get_full_name(
+        self,
+        base_filename: str
+    ) -> str:
+        
+
+        return f'{base_filename}.{self.extension}'
+
+
     def save_dataframe(
         self,
         df: Union[pd.DataFrame, pd.Series],
@@ -568,8 +577,10 @@ class Stoat:
             stoat_outfile = (self.output_dir + f'stoat_{bc}')
 
             # Check if we're overwriting
-            if not overwrite_old and (os.path.exists(stoat_outfile) or 
-                (save_panda and os.path.exists(panda_outfile))):
+            if not overwrite_old and (
+                os.path.exists(self.get_full_name(stoat_outfile)) or 
+                (save_panda and 
+                os.path.exists(self.get_full_name(panda_outfile)))):
                 print (f'Skipping spot {bc} because the STOAT or ' 
                     'PANDA file already exists in the target directory')
                 continue
@@ -583,15 +594,15 @@ class Stoat:
             panda_net = panda_obj.panda_network
 
             if save_panda:
-                print ('Saving the intermediate PANDA network to ' 
-                    f'{panda_outfile}.{self.extension}')
+                print ('Saving the intermediate PANDA network to', 
+                    self.get_full_name(panda_outfile))
                 self.save_dataframe(panda_net, panda_outfile)
             
             # Equation for deriving the spot-specific network
             stoat_net = n_spots * (self.panda_network - panda_net) + panda_net
 
-            print (f'Saving the STOAT network to '
-                f'{stoat_outfile}.{self.extension}')
+            print (f'Saving the STOAT network to',
+                self.get_full_name(stoat_outfile))
             self.save_dataframe(stoat_net, stoat_outfile)
 
             if save_degrees:
@@ -599,11 +610,11 @@ class Stoat:
                 in_outfile = (self.output_dir + f'indegree_{bc}')
                 out_outfile = (self.output_dir + f'outdegree_{bc}')
 
-                print (f'Saving the indegrees to '
-                    f'{in_outfile}.{self.extension}')
+                print ('Saving the indegrees to',
+                    self.get_full_name(in_outfile))
                 self.save_dataframe(stoat_net.sum().rename('Indegrees'), 
                     in_outfile)
-                print ('Saving the outdegrees to '
-                    f'{out_outfile}.{self.extension}')
+                print ('Saving the outdegrees to',
+                    self.get_full_name(out_outfile))
                 self.save_dataframe(stoat_net.sum(axis=1).rename('Outdegrees'), 
                     out_outfile)
