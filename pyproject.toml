@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stoat"
+authors = [
+    {name = "Ladislav Hovan", email = "ladislav.hovan@ncmm.uio.no"},
+]
+version = "0.0.1"
+description = "A package to generate spatially resolved gene regulatory networks from spatial transcriptomics data."
+readme = "README.md"
+license = {text = "GPL-3"}
+keywords = ["transcription-factors", "gene-regulatory-network"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+    "pandas",
+    "numpy",
+    "netZooPy",
+    "biomart",
+    "scanpy",
+    "matplotlib",
+]
+
+[project.urls]
+Repository = "https://github.com/ladislav-hovan/stoat"
