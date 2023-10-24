@@ -573,8 +573,8 @@ class Stoat:
 
         for bc in barcodes:
             # Names of output files (base, without extension)
-            panda_outfile = (self.output_dir + f'panda_{bc}')
-            stoat_outfile = (self.output_dir + f'stoat_{bc}')
+            panda_outfile = os.path.join(self.output_dir, f'panda_{bc}')
+            stoat_outfile = os.path.join(self.output_dir, f'stoat_{bc}')
 
             # Check if we're overwriting
             if not overwrite_old and (
@@ -607,8 +607,8 @@ class Stoat:
 
             if save_degrees:
                 # Names of output files
-                in_outfile = (self.output_dir + f'indegree_{bc}')
-                out_outfile = (self.output_dir + f'outdegree_{bc}')
+                in_outfile = os.path.join(self.output_dir, f'indegree_{bc}')
+                out_outfile = os.path.join(self.output_dir, f'outdegree_{bc}')
 
                 print ('Saving the indegrees to',
                     self.get_full_name(in_outfile))
