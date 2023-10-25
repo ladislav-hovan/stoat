@@ -426,9 +426,13 @@ class Stoat:
                 get_distance_to_neighbours(row.name, self.spatial).apply(
                 calculate_gaussian_fixed).sum(), axis=0), axis=1)
             self.avg_expression.fillna(0, inplace=True)
+        elif kernel == 'similar':
+            pass
+        elif kernel == 'similar_gaussian':
+            pass
         else:
             raise NotImplementedError(f'Unrecognised kernel: {kernel}'
-                '\nOptions are: uniform, gaussian')
+                '\nOptions are: uniform, gaussian, similar, similar_gaussian')
 
 
     ### Data plotting ###
