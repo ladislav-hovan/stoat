@@ -148,7 +148,7 @@ class Stoat:
         self.expression = df2
         self.avg_expression = df2.copy()
         self.features = pd.DataFrame(features, 
-            columns=['Ensemble', 'Name', 'Type'])
+            columns=['Ensembl', 'Name', 'Type'])
 
         if ((self.spatial is not None) and 
             (len(self.expression) != len(self.spatial))):
@@ -297,7 +297,7 @@ class Stoat:
 
         if features is not None:
             self.features = pd.read_csv(features, sep='\t', header=None,
-                names=['Ensemble', 'Name', 'Type'])
+                names=['Ensembl', 'Name', 'Type'])
         if annotations is not None:
             ann_df = pd.read_csv(annotations, sep='\t')
 
