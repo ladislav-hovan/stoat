@@ -14,19 +14,14 @@ from typing import Optional, Mapping, Iterable, Any, Tuple
 from stoat.plotting import plot_spot_classification
 
 ### Functions ###
-def determine_cluster_labels(
+def normalise_data(
     df: pd.DataFrame,
     spatial: pd.DataFrame,
     validity: str = 'Acceptable',
     normalise: bool = True,
     normalise_genes: bool = True,
-    clustering: str = 'Leiden',
-    clustering_opt: Mapping[Any, Any] = {},
-    n_variable: int = 2000,
-    exclude_extra: bool = False,
-) -> Tuple[pd.Series, list, int]:
-    # Determines the clusters in the data and returns the labels to be 
-    # used for plotting
+) -> pd.DataFrame:
+    # Subset only the valid spots
     df_f = df.loc[spatial[validity]]
     if normalise:
     # Normalise either each gene or each spot
@@ -38,54 +33,121 @@ def determine_cluster_labels(
                 df_f.std(axis=1), axis=0).fillna(0)
     else:
         df_scaled = df_f
+
+    return df_scaled
+
+
+def create_anndata_with_pc(
+    df_scaled: pd.DataFrame,
+    n_variable: int = 2000,
+) -> sc.AnnData:
     # Create an AnnData object from the DataFrame
     adata = sc.AnnData(df_scaled.copy(), df_scaled.index.to_frame(
         name='clusters'), df_scaled.columns.to_frame(name='gene_ids'))
     # Clustering preprocessing steps
     sc.pp.highly_variable_genes(adata, flavor="seurat", n_top_genes=n_variable)
     sc.pp.pca(adata)
-    # Run the desired clustering algorithm
-    if clustering == 'Leiden':
-        sc.pp.neighbors(adata)
-        sc.tl.umap(adata)
-        sc.tl.leiden(adata, key_added="clusters", **clustering_opt)
-        # Retrieve the annotated classes
-        classes = adata.obs['clusters'].astype(int).copy()
-        # Index them in the same way as the spatial DataFrame, fill in missing
-        classes = classes.reindex(spatial.index, fill_value=-1)
-    elif clustering == 'HDBScan':
-        clusterer = hdbscan.HDBSCAN(**clustering_opt)
-        clusterer.fit(adata.obsm['X_pca'])
-        # Retrieve the annotated classes with a proper index
-        classes = pd.Series(clusterer.labels_, index=adata.obs.index)
-        # Rename the classes to follow ordering from most to least common
-        counts = classes.value_counts()
-        if -1 in counts:
-            counts.drop(-1, inplace=True)
-        renaming = {name: pos for pos,name in enumerate(counts.index)}
-        classes.replace(renaming, inplace=True)
-    else:
-        print (f'Clustering type {clustering} not implemented, ending')
-        print ('Implemented types: Leiden, HDBScan')
-        return
+
+    return adata
+
+
+def cluster_leiden(
+    adata: sc.AnnData,
+    clustering_opt: Mapping[Any, Any] = {},
+) -> pd.Series:
+    # Performs the Leiden clustering on the provided AnnData object with 
+    # principal components
+    sc.pp.neighbors(adata)
+    sc.tl.umap(adata)
+    sc.tl.leiden(adata, key_added="clusters", **clustering_opt)
+    # Retrieve the annotated classes
+    classes = adata.obs['clusters'].astype(int).copy()
+
+    return classes
+
+
+def cluster_hdbscan(
+    adata: sc.AnnData,
+    clustering_opt: Mapping[Any, Any] = {},
+) -> pd.Series:
+    clusterer = hdbscan.HDBSCAN(**clustering_opt)
+    clusterer.fit(adata.obsm['X_pca'])
+    # Retrieve the annotated classes with a proper index
+    classes = pd.Series(clusterer.labels_, index=adata.obs.index)
+    # Rename the classes to follow ordering from most to least common
+    counts = classes.value_counts()
+    if -1 in counts:
+        counts.drop(-1, inplace=True)
+    renaming = {name: pos for pos,name in enumerate(counts.index)}
+    classes.replace(renaming, inplace=True)
+
+    return classes
+
+
+def change_class_annotation(
+    classes: pd.Series,
+    spatial: pd.DataFrame,
+    exclude_extra: bool = False,
+    max_classes: int = 20,
+):
+    
+    # Index classes in the same way as the spatial DataFrame, fill in missing
+    classes = classes.reindex(spatial.index, fill_value=-1)
     # Count the number of actual classes (not -1)
     n_classes = classes.nunique() - (-1 in classes.values)
-    # Classification for up to 20 classes
+    # Classification for up to a given number of classes
     # In case there's more exclude the extra or group into one class
-    if n_classes < 20:
+    if n_classes < max_classes:
         classes_mod = classes
         ordering = [i for i in range(n_classes)]
     else:
         if exclude_extra:
             # Exclude the classes above 19 (group into missing)
-            classes_mod = classes.apply(lambda x: x if x <= 19 else -1)
-            ordering = [i for i in range(20)]
+            classes_mod = classes.apply(
+                lambda x: x if x <= max_classes - 1 else -1)
+            ordering = [i for i in range(max_classes)]
         else:
-            # Group the extra classes into one called 19+
-            classes_mod = classes.apply(lambda x: x if int(x) < 19 else '19+') 
-            ordering = [i for i in range(19)] + ['19+']
-
+            # Group the extra classes into one called 
+            classes_mod = classes.apply(
+                lambda x: x if int(x) < max_classes - 1 else 
+                f'{max_classes - 1}+') 
+            ordering = ([i for i in range(max_classes - 1)] + 
+                [f'{max_classes - 1}+'])
+    
     return (classes_mod, ordering, n_classes)
+
+
+def determine_cluster_labels(
+    df: pd.DataFrame,
+    spatial: pd.DataFrame,
+    validity: str = 'Acceptable',
+    normalise: bool = True,
+    normalise_genes: bool = True,
+    clustering: str = 'Leiden',
+    clustering_opt: Mapping[Any, Any] = {},
+    n_variable: int = 2000,
+    exclude_extra: bool = False,
+    max_classes: int = 20,
+) -> Tuple[pd.Series, list, int]:
+    # Determines the clusters in the data and returns the labels to be 
+    # used for plotting
+    # Subset and scale data
+    df_scaled = normalise_data(df, spatial, validity, normalise, 
+        normalise_genes)
+    # Convert to AnnData which contains the principal components
+    adata = create_anndata_with_pc(df_scaled, n_variable)
+    # Run the desired clustering algorithm
+    if clustering == 'Leiden':
+        classes = cluster_leiden(adata, clustering_opt)
+    elif clustering == 'HDBScan':
+        classes = cluster_hdbscan(adata, clustering_opt)
+    else:
+        print (f'Clustering type {clustering} not implemented, ending')
+        print ('Implemented types: Leiden, HDBScan')
+        return
+
+    return change_class_annotation(classes, spatial, exclude_extra, 
+        max_classes)
 
 
 def plot_clusters(

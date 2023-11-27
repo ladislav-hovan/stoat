@@ -5,13 +5,15 @@
 import pandas as pd
 import numpy as np
 
+from math import ceil
+
 from typing import Optional, Tuple, Mapping, Union, Callable, Iterable
 
 import matplotlib.pyplot as plt
 
 from matplotlib.patches import RegularPolygon, Circle
-from matplotlib.cm import get_cmap
 from matplotlib.colors import Colormap, Normalize
+from matplotlib.ticker import MaxNLocator
 
 # plt.rcParams['text.usetex'] = True
 
@@ -79,7 +81,7 @@ def plot_spot_expression(
             None, hide_overflow)
     else:
         # All spots get the same colour
-        cmap = get_cmap(colourmap)
+        cmap = plt.colormaps[colourmap]
         colours = pd.Series(1, index=spatial.index)
 
     # Create the basic hexagonal plot
@@ -314,7 +316,7 @@ def generate_cmap_and_colours(
         and the normalised colour series
     """
 
-    cmap = get_cmap(colourmap).copy()
+    cmap = plt.colormaps[colourmap].copy()
 
     if cm_limits is None:
         cm_limits = (None, None)
@@ -410,3 +412,218 @@ def plot_hexagons(
 
     if ax_create:
         return fig, ax
+    
+
+def plot_deg_data(
+    data: dict,
+    n_genes: int = 10,
+    n_cols: int = 4,
+    max_score: float = 50,
+    score_spacing: float = 10,
+    cmap: str = 'tab20',
+    max_clusters: int = 20,
+    fig: Optional[plt.Figure] = None,
+) -> Tuple[plt.Figure, plt.Axes]:
+    
+    n_clusters = len(data['scores'][0])
+    n_rows = ceil(n_clusters / n_cols)
+
+    # In order to keep bar thickness roughly consistent among different number
+    # of genes, we need to add a constant that represents the axes space
+    # This value has been determined by trial and error
+    OVERHEAD = 2.5
+    # Other internal plot settings
+    WIDTH_PER_COL = 3
+    HEIGHT_PER_GENE = 3 / 10
+    if fig is None:
+        fig,ax = plt.subplots(n_rows, n_cols, 
+            figsize=(n_cols * WIDTH_PER_COL, 
+                n_rows * (n_genes + OVERHEAD) * HEIGHT_PER_GENE),
+            tight_layout=True)
+    else:
+        ax = fig.subplots(n_rows, n_cols)
+    cm = plt.colormaps[cmap]
+
+    for i in range(n_clusters):
+        ax_i = ax[i // n_cols][i % n_cols]
+        label = str(i)  # The labels for the clusters are strings, not integers
+        ax_i.set_xlim(0, max_score)
+        ax_i.set_ylim(-n_genes, 1)
+        ax_i.grid(False)
+        ax_i.set_xticks([i for i in range(0, max_score + 1, score_spacing)])
+        ax_i.set_yticks([])  # No yticks
+        ax_i.spines['top'].set_visible(False)
+        ax_i.spines['right'].set_visible(False)
+        # Plot all the bars
+        ax_i.barh([-i for i in range(n_genes)], 
+            data['scores'][label][:n_genes] - 1, 
+            color=cm(i / max_clusters), align='center')
+        # Add the labels
+        for pos,(n,s) in enumerate(zip(data['names'][label][:n_genes], 
+            data['scores'][label][:n_genes])):
+            ax_i.text(s, -pos, n, ha='left', va='center')
+    # Hide the possible extra axes from the plot
+    for i in range(n_clusters, n_rows * n_cols):
+        ax_i = ax[i // n_cols][i % n_cols]
+        ax_i.set_axis_off()
+
+    return fig,ax
+
+
+def plot_deg_heatmap(
+    data: pd.DataFrame,
+    figsize: Tuple[int, int] = (6,5),
+    percentile: Tuple[int, int] = (2,98),
+    title: str = '',
+    cmap: str = 'viridis',
+    n_cluster_spots: Optional[int] = None,
+    cluster_colour: str = 'red',
+    background_colour: str = 'lightgrey',
+    show_every: int = 1,
+) -> Tuple[plt.Figure, plt.Axes]:
+    
+    
+    df = data.iloc[::-1]
+
+    vmin = np.percentile(df, percentile[0])
+    vmax = np.percentile(df, percentile[1])
+    norm = Normalize(vmin=vmin, vmax=vmax)
+
+    fig,ax = plt.subplots(figsize=figsize)
+    pcm = ax.pcolormesh(df.values, rasterized=True, norm=norm, cmap=cmap)
+    ax.set_title(title, size=18)
+
+    if n_cluster_spots is not None:
+        ax.plot([0, n_cluster_spots], [-1,-1], color=cluster_colour, lw=3)
+        ax.plot([n_cluster_spots, len(df.columns)], [-1,-1], 
+            color=background_colour, lw=3)
+
+    ax.set_yticks([i+0.5 for i in range(0, len(df), show_every)], 
+        df.index[::show_every])
+    ax.yaxis.set_tick_params('major', left=False)
+
+    cb = fig.colorbar(mappable=pcm, ax=ax, shrink=0.5, aspect=10)
+    cb.ax.yaxis.set_tick_params(
+        color='white', direction='in', left=True, right=True,
+    )
+    cb_locator = MaxNLocator(nbins=5, integer=True)
+    cb.locator = cb_locator
+    cb.update_ticks()
+    cb.ax.set_title('N. E.', loc='left', fontweight='bold')
+    for spine in cb.ax.spines.values():
+        spine.set_visible(False)
+
+    ax.set_xticks([])
+    for side in ['top', 'right', 'left', 'bottom']:
+        ax.spines[side].set_visible(False)
+    
+    return fig,ax
+
+
+def plot_gsea_dotplot(
+    df: pd.DataFrame,
+    column: str = 'FDR q-val',
+    n_terms: int = 10,
+    threshold: float = 0.05,
+    x: str = 'NES',
+    y: str = 'Term',
+    title: str = '',
+    cmap: str = 'viridis_r',
+    dot_scale: float = 5.0,
+    ax: Optional[plt.Axes] = None,
+    figsize: Tuple[float, float] = (4, 6),
+) -> plt.Axes:
+
+    df = df.loc[df[column] <= threshold]
+    if len(df) == 0:
+        msg = f'No enriched terms with {column} <= {threshold}'
+        if ax is None:
+            raise ValueError(msg)
+        else:
+            ax.text(0.5, 0.5, msg, ha='center', va='center', fontsize=14,
+                transform=ax.transAxes)
+            ax.set_axis_off()
+            return
+
+    colnd = {'Adjusted P-value': 'FDR', 'P-value': 'Pval', 'NOM p-val': 'Pval',
+        'FDR q-val': 'FDR'}
+    if column in colnd:
+        df = df.sort_values(by=column)
+        df[column].replace(0, method='bfill', inplace=True)
+        df['p_inv'] = np.log10(1 / df[column].astype(float))
+        colname = 'p_inv'
+        cbar_title = r'$\log_{10} \frac{1}{ ' + colnd[column] + ' }$'
+
+    df = df.sort_values(by=colname).tail(n_terms)
+    
+    if df.columns.isin(['Overlap', 'Tag %']).any():
+        ol = df.columns[df.columns.isin(['Overlap', 'Tag %'])]
+        temp = df[ol].squeeze(axis=1).str.split('/', expand=True).astype(int)
+        df['Hits_ratio'] = temp.iloc[:, 0] / temp.iloc[:, 1]
+    else:
+        df['Hits_ratio'] = 1.0
+
+    df['area'] = (df['Hits_ratio'] * dot_scale * 
+        plt.rcParams['lines.markersize']).pow(2)
+    
+    if ax is None:
+        _,ax = plt.subplots(figsize=figsize)
+    fig = ax.get_figure()
+    
+    colmap = df[colname].astype(int)
+    vmin = np.percentile(colmap, 2)
+    vmax = np.percentile(colmap, 98)
+
+    sc = ax.scatter(
+        x=x,
+        y=y,
+        data=df,
+        s='area',
+        edgecolors='none',
+        c=colname,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
+        zorder=2,
+    )
+    ax.set_xlabel(x, fontsize=14, fontweight='bold')
+    ax.xaxis.set_tick_params(labelsize=14)
+    ax.yaxis.set_tick_params(labelsize=16)
+    ax.set_axisbelow(True)
+    ax.grid(axis='y', zorder=-1)
+    ax.margins(x=0.25)
+
+    handles, labels = sc.legend_elements(
+        prop='sizes',
+        num=3,
+        fmt='{x:.2f}',
+        color='gray',
+        func=lambda s: (np.sqrt(s) / plt.rcParams['lines.markersize'] / 
+            dot_scale),
+    )
+    ax.legend(
+        handles,
+        labels,
+        title='% Genes\nin set',
+        bbox_to_anchor=(1.02, 0.9),
+        loc='upper left',
+        frameon=False,
+        labelspacing=2,
+    )
+    ax.set_title(title, fontsize=20, fontweight='bold')
+
+    cbar = fig.colorbar(
+        sc,
+        shrink=0.25,
+        aspect=10,
+        anchor=(0.0, 0.2),
+        location='right',
+    )
+    cbar.ax.yaxis.set_tick_params(
+        color='white', direction='in', left=True, right=True
+    )
+    cbar.ax.set_title(cbar_title, loc='left', fontweight='bold')
+    for _, spine in cbar.ax.spines.items():
+        spine.set_visible(False)
+
+    return ax

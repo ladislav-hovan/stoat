@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from stoat.stoat import Stoat
 from stoat.clustering import *
+from stoat.stoat_analysis import StoatAnalysis
 
 from typing import Union
 
@@ -184,7 +185,7 @@ def generate_anndata(
     validity: pd.Series,
     classes: pd.Series,
     ens_to_name: pd.Series,
-):    
+) -> sc.AnnData:    
     # Create an AnnData object that can be passed for further analysis
     df_f = df.loc[validity]
     df_scaled = df_f.subtract(df_f.mean(axis=0), axis=1).divide(
@@ -237,57 +238,3 @@ def perform_deg_analysis(
         method='wilcoxon', tie_correct=True, copy=True)
     
     return deg_adata
-    
-
-def plot_deg_data(
-    data: dict,
-    n_genes: int = 10,
-    n_cols: int = 4,
-    max_score: float = 50,
-    score_spacing: float = 10,
-    cmap: str = 'tab20',
-    max_clusters: int = 20,
-    ax: Optional[plt.Axes] = None,  # Unused yet
-) -> Tuple[plt.Figure, plt.Axes]:
-    # Plots the data for differentially expressed genes for every cluster
-    # and colours them accordingly
-    n_clusters = len(data['scores'][0])
-    n_rows = ceil(n_clusters / n_cols)
-
-    # In order to keep bar thickness roughly consistent among different number
-    # of genes, we need to add a constant that represents the axes space
-    # This value has been determined by trial and error
-    OVERHEAD = 2.5
-    # Other internal plot settings
-    WIDTH_PER_COL = 3
-    HEIGHT_PER_GENE = 3 / 10
-    fig,ax = plt.subplots(n_rows, n_cols, 
-        figsize=(n_cols * WIDTH_PER_COL, 
-            n_rows * (n_genes + OVERHEAD) * HEIGHT_PER_GENE),
-        tight_layout=True)
-    cm = plt.colormaps[cmap]
-
-    for i in range(n_clusters):
-        ax_i = ax[i // n_cols][i % n_cols]
-        label = str(i)  # The labels for the clusters are strings, not integers
-        ax_i.set_xlim(0, max_score)
-        ax_i.set_ylim(-n_genes, 1)
-        ax_i.grid(False)
-        ax_i.set_xticks([i for i in range(0, max_score + 1, score_spacing)])
-        ax_i.set_yticks([])  # No yticks
-        ax_i.spines['top'].set_visible(False)
-        ax_i.spines['right'].set_visible(False)
-        # Plot all the bars
-        ax_i.barh([-i for i in range(n_genes)], 
-            data['scores'][label][:n_genes] - 1, 
-            color=cm(i / max_clusters), align='center')
-        # Add the labels
-        for pos,(n,s) in enumerate(zip(data['names'][label][:n_genes], 
-            data['scores'][label][:n_genes])):
-            ax_i.text(s, -pos, n, ha='left', va='center')
-    # Hide the possible extra axes from the plot
-    for i in range(n_clusters, n_rows * n_cols):
-        ax_i = ax[i // n_cols][i % n_cols]
-        ax_i.set_axis_off()
-
-    return fig,ax

@@ -34,7 +34,7 @@ class Stoat:
         output_dir: str = 'output/',
         output_extension: EXTENSION = 'tsv',
         auto_calculate: bool = False
-    ):
+    ) -> None:
 
 
         # TODO: Implement network methods other than PANDA (PUMA, DRAGON?)
