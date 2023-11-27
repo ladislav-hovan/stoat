@@ -4,12 +4,15 @@ import glob
 
 import pandas as pd
 import numpy as np
+import scanpy as sc
+import gseapy as gp
 import matplotlib.pyplot as plt
 
 from stoat.stoat import Stoat
 from stoat.clustering import *
+from stoat.stoat_analysis import StoatAnalysis
 
-from typing import Union, Optional
+from typing import Union
 
 PATH = Union[str, os.PathLike]
 FILE_LIKE = Union[str, bytes, os.PathLike]
@@ -21,8 +24,7 @@ def analyse_fully(
     indegree_file: Optional[FILE_LIKE],
     extension: str,
     output_folder: PATH
-):
-    
+) -> None:    
     # Runs the entire pipeline
     if not os.path.isdir(output_folder):
         os.makedirs(output_folder)    
@@ -43,8 +45,7 @@ def analyse_fully(
 def prepare_stoat_object(
     prior_dir: PATH,
     data_dir: PATH
-):
-
+) -> Stoat: 
     # Loads a STOAT object
     stoat_obj = Stoat(
         motif_prior=prior_dir + 'tf_prior_fixed.tsv', 
@@ -70,8 +71,7 @@ def prepare_stoat_object(
 def describe_expression(
     stoat_obj: Stoat,
     save_to: FILE_LIKE
-):
-    
+) -> Tuple[plt.Figure, plt.Axes]:   
     # Provides details about the expression sparsity
     expr_df = stoat_obj.expression
     spatial_df = stoat_obj.spatial
@@ -114,19 +114,18 @@ def describe_expression(
 
 def calculate_indegrees(
     stoat_folder: PATH,
-    extension: str
-):
-    
+    extension: str,
+    output_file_base: FILE_LIKE = 'final_indegree',
+) -> None:
     # Calculates indegrees and saves them for every STOAT network in
     # the folder
     pass
 
 
 def load_into_df(
-    filename,
-    extension
-):
-    
+    filename: FILE_LIKE,
+    extension: str,
+) -> pd.DataFrame:  
     # Loads the df from a file with a given extension
     if extension == 'tsv':
         df = pd.read_csv(filename, sep='\t', index_col=0)
@@ -143,11 +142,10 @@ def load_into_df(
 
 
 def save_into_file(
-    df,
-    filename,
-    extension
-):
-    
+    df: pd.DataFrame,
+    filename: FILE_LIKE,
+    extension: str,
+) -> None: 
     # Saves the df into a file with proper extension
     if extension == 'tsv':
         df.to_csv(filename, sep='\t')
@@ -166,9 +164,8 @@ def save_into_file(
 def collate_indegrees(
     stoat_folder: PATH,
     extension: str,
-    output_file: FILE_LIKE
-):
-    
+    output_file: FILE_LIKE,
+) -> None:  
     # Gathers the data from all indegree files in a folder and puts
     # it into a single file   
     id_files = glob.glob(os.path.join(stoat_folder, 
@@ -183,5 +180,61 @@ def collate_indegrees(
     save_into_file(df, output_file, extension)
 
 
+def generate_anndata(
+    df: pd.DataFrame,
+    validity: pd.Series,
+    classes: pd.Series,
+    ens_to_name: pd.Series,
+) -> sc.AnnData:    
+    # Create an AnnData object that can be passed for further analysis
+    df_f = df.loc[validity]
+    df_scaled = df_f.subtract(df_f.mean(axis=0), axis=1).divide(
+        df_f.std(axis=0), axis=1).fillna(0)
+    anndata = sc.AnnData(df_scaled.copy(), df_scaled.index.to_frame(
+        name='clusters'), df_scaled.columns.to_frame(name='gene_ids'))
+    anndata.obs['clusters'] = classes.astype(str)
+    sc.pp.log1p(anndata)
+    anndata.var['gene_names'] = anndata.var['gene_ids'].apply(
+        lambda x: ens_to_name[x])
+    anndata.var_names = anndata.var['gene_names']
+
+    return anndata
 
 
+def perform_gsea(
+    anndata: sc.AnnData,
+    gene_set: str,
+    **kwargs,
+) -> dict: 
+    # Perform GSEA for every identified cluster in the anndata object
+    # Compares to all other clusters
+    # Assumes clusters are present at obs['clusters'], data is log1p 
+    # transformed and gene names are used instead of Ensembl IDs
+    # kwargs are passed to the gsea function
+    for i in range(anndata.obs['clusters'].nunique()):
+        anndata.obs[f'is_{i}'] = (anndata.obs['clusters'] == f'{i}').astype(int)
+    res_all = {}
+    for i in range(anndata.obs['clusters'].nunique()):
+        in_cluster = anndata.obs[f'is_{i}'].copy()
+        in_cluster.sort_values(ascending=False, inplace=True)
+        res_all[i] = gp.gsea(
+            data=anndata.to_df().reindex(in_cluster.index).T, # row -> genes, column-> samples
+            gene_sets=gene_set,
+            cls=in_cluster,
+            **kwargs,
+        )
+
+    return res_all
+
+
+def perform_deg_analysis(
+    anndata: sc.AnnData,
+) -> sc.AnnData:
+    # Perform DEG for every identified cluster in the anndata object
+    # Compares to all other clusters
+    # Assumes clusters are present at obs['clusters'], data is log1p 
+    # transformed and gene names are used instead of Ensembl IDs
+    deg_adata = sc.tl.rank_genes_groups(anndata, groupby='clusters', 
+        method='wilcoxon', tie_correct=True, copy=True)
+    
+    return deg_adata

@@ -34,7 +34,7 @@ class Stoat:
         output_dir: str = 'output/',
         output_extension: EXTENSION = 'tsv',
         auto_calculate: bool = False
-    ):
+    ) -> None:
 
 
         # TODO: Implement network methods other than PANDA (PUMA, DRAGON?)
@@ -148,7 +148,7 @@ class Stoat:
         self.expression = df2
         self.avg_expression = df2.copy()
         self.features = pd.DataFrame(features, 
-            columns=['Ensemble', 'Name', 'Type'])
+            columns=['Ensembl', 'Name', 'Type'])
 
         if ((self.spatial is not None) and 
             (len(self.expression) != len(self.spatial))):
@@ -297,7 +297,7 @@ class Stoat:
 
         if features is not None:
             self.features = pd.read_csv(features, sep='\t', header=None,
-                names=['Ensemble', 'Name', 'Type'])
+                names=['Ensembl', 'Name', 'Type'])
         if annotations is not None:
             ann_df = pd.read_csv(annotations, sep='\t')
 
@@ -506,6 +506,15 @@ class Stoat:
         del panda_obj
 
 
+    def get_full_name(
+        self,
+        base_filename: str
+    ) -> str:
+        
+
+        return f'{base_filename}.{self.extension}'
+
+
     def save_dataframe(
         self,
         df: Union[pd.DataFrame, pd.Series],
@@ -564,12 +573,14 @@ class Stoat:
 
         for bc in barcodes:
             # Names of output files (base, without extension)
-            panda_outfile = (self.output_dir + f'panda_{bc}')
-            stoat_outfile = (self.output_dir + f'stoat_{bc}')
+            panda_outfile = os.path.join(self.output_dir, f'panda_{bc}')
+            stoat_outfile = os.path.join(self.output_dir, f'stoat_{bc}')
 
             # Check if we're overwriting
-            if not overwrite_old and (os.path.exists(stoat_outfile) or 
-                (save_panda and os.path.exists(panda_outfile))):
+            if not overwrite_old and (
+                os.path.exists(self.get_full_name(stoat_outfile)) or 
+                (save_panda and 
+                os.path.exists(self.get_full_name(panda_outfile)))):
                 print (f'Skipping spot {bc} because the STOAT or ' 
                     'PANDA file already exists in the target directory')
                 continue
@@ -583,27 +594,27 @@ class Stoat:
             panda_net = panda_obj.panda_network
 
             if save_panda:
-                print ('Saving the intermediate PANDA network to ' 
-                    f'{panda_outfile}.{self.extension}')
+                print ('Saving the intermediate PANDA network to', 
+                    self.get_full_name(panda_outfile))
                 self.save_dataframe(panda_net, panda_outfile)
             
             # Equation for deriving the spot-specific network
             stoat_net = n_spots * (self.panda_network - panda_net) + panda_net
 
-            print (f'Saving the STOAT network to '
-                f'{stoat_outfile}.{self.extension}')
+            print (f'Saving the STOAT network to',
+                self.get_full_name(stoat_outfile))
             self.save_dataframe(stoat_net, stoat_outfile)
 
             if save_degrees:
                 # Names of output files
-                in_outfile = (self.output_dir + f'indegree_{bc}')
-                out_outfile = (self.output_dir + f'outdegree_{bc}')
+                in_outfile = os.path.join(self.output_dir, f'indegree_{bc}')
+                out_outfile = os.path.join(self.output_dir, f'outdegree_{bc}')
 
-                print (f'Saving the indegrees to '
-                    f'{in_outfile}.{self.extension}')
+                print ('Saving the indegrees to',
+                    self.get_full_name(in_outfile))
                 self.save_dataframe(stoat_net.sum().rename('Indegrees'), 
                     in_outfile)
-                print ('Saving the outdegrees to '
-                    f'{out_outfile}.{self.extension}')
+                print ('Saving the outdegrees to',
+                    self.get_full_name(out_outfile))
                 self.save_dataframe(stoat_net.sum(axis=1).rename('Outdegrees'), 
                     out_outfile)
