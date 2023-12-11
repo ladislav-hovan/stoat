@@ -627,3 +627,55 @@ def plot_gsea_dotplot(
         spine.set_visible(False)
 
     return ax
+
+
+def plot_cluster_matching(
+    first: pd.Series,
+    second: pd.Series,
+    n_cols: int = 4,
+    cmap: str = 'tab20',
+    max_clusters: int = 20,
+    fig: Optional[plt.Figure] = None,
+    legend: bool = True,
+) -> Tuple[plt.Figure, plt.Axes]:
+    
+    comp = pd.DataFrame([first.rename('first'), second.rename('second')]).T
+    matching = comp.groupby('first').value_counts()
+    first_labels = comp['first'].unique()
+    second_labels = comp['second'].unique()
+
+    n_clusters_1 = len(first_labels) - int(-1 in first_labels)
+    n_clusters_2 = len(second_labels) - int(-1 in second_labels)
+    n_clusters = max(n_clusters_1, n_clusters_2)
+    n_rows = ceil(n_clusters_1 / n_cols)
+
+    cm = plt.colormaps[cmap]
+    colours = {i: cm(i / max_clusters) for i in range(max_clusters)}
+    colours[-1] = 'grey'
+
+    if fig is None:
+        fig,ax = plt.subplots(n_rows, n_cols, figsize=(3*n_cols, 3.5*n_rows), 
+            tight_layout=True)
+    else:
+        ax = fig.subplots(n_rows, n_cols)
+        
+    for i in range(n_clusters_1):
+        ax_i = ax[i // n_cols][i % n_cols]
+        ax_i.pie(matching.loc[i].values,
+            colors=[colours[k] for k in matching.loc[i].index])
+        ax_i.set_title(f'Cluster {i}', weight='bold', color='white',
+            backgroundcolor=colours[i])
+    # Hide the possible extra axes from the plot
+    for i in range(n_clusters_1, n_rows * n_cols):
+        ax_i = ax[i // n_cols][i % n_cols]
+        ax_i.set_axis_off()
+    
+    if legend:
+        custom_lines = ([plt.Line2D([0], [0], color=cm(i / max_clusters), lw=8)
+            for i in range(n_clusters)] + 
+            [plt.Line2D([0], [0], color='grey', lw=8)])
+        fig.legend(custom_lines, [f'Cluster {i}' for i in range(n_clusters)] +
+            ['Not in cluster'],
+            bbox_to_anchor=(1, 1), loc='upper left', handlelength=0.7)
+
+    return fig,ax
