@@ -21,7 +21,7 @@ from matplotlib.ticker import MaxNLocator
 def plot_spot_expression(
     spatial: pd.DataFrame,
     expression: pd.DataFrame,
-    validity: str = 'Success',
+    validity: str = 'isTissue',
     colour_from: Optional[Union[str, Callable]] = None,
     colourmap: str = 'Greens',
     label: Optional[str] = None,
@@ -43,7 +43,7 @@ def plot_spot_expression(
         The dataframe containing the expression levels for the spots
     validity : str, optional
         The column name in the spatial dataframe to be used to determine
-        validity, by default 'Success'
+        validity, by default 'isTissue'
     colour_from : Union[str, Callable], optional
         The name of the gene that the colouring will be based on, or a 
         function to be applied to every spot (for example sum), or None 
@@ -106,7 +106,7 @@ def plot_spot_expression(
 def plot_spot_classification(
     spatial: pd.DataFrame,
     classes: pd.Series,
-    validity: str = 'Success',
+    validity: str = 'isTissue',
     colourmap: str = 'Set2',
     legend: bool = True,
     labels: Optional[Mapping] = None,
@@ -128,7 +128,7 @@ def plot_spot_classification(
         A series of class names for the spots
     validity : str, optional
         The column name in the spatial dataframe to be used to determine
-        validity ('Valid' or 'Success'), by default 'Success'
+        validity ('Valid' or 'isTissue'), by default 'isTissue'
     colourmap : str, optional
         The name of the matplotlib colourmap to use, by default 'Set2'
     legend : bool, optional

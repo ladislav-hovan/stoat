@@ -78,21 +78,21 @@ def describe_expression(
 
     print ('Proportion of spots with tissue: '
         f'{100 * spatial_df["Success"].sum() / len(spatial_df):.2f} %')
-    avg_sparsity = (expr_df.loc[spatial_df['Success']] == 0).mean(
+    avg_sparsity = (expr_df.loc[spatial_df['isTissue']] == 0).mean(
         axis=1).mean()
     print ('Average sparsity of genes in a spot with tissue: '
         f'{100 * avg_sparsity:.2f} %')
     
     gene_coverage = {}
     cov_lambda = lambda row: np.mean(row > 0)
-    gene_coverage[-1] = expr_df.loc[spatial_df['Success']].apply(
+    gene_coverage[-1] = expr_df.loc[spatial_df['isTissue']].apply(
         cov_lambda, axis=1)
     stoat_obj.filter_genes()
-    success = stoat_obj.expression.loc[spatial_df['Success']]
+    success = stoat_obj.expression.loc[spatial_df['isTissue']]
     gene_coverage[0] = success.apply(cov_lambda, axis=1)
     for i in range(1, 4):
         stoat_obj.average_expression(neighbours=i)
-        avg_success = stoat_obj.avg_expression.loc[spatial_df['Success']]
+        avg_success = stoat_obj.avg_expression.loc[spatial_df['isTissue']]
         gene_coverage[i] = avg_success.apply(cov_lambda, axis=1)
 
     fig,ax = plt.subplots(figsize=(8,8))

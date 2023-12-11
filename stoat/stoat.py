@@ -204,10 +204,10 @@ class Stoat:
         else:
             header_row = 0
         # Load spatial data
-        coords = pd.read_csv(spatial_path, index_col=0, names=['Success', 
+        coords = pd.read_csv(spatial_path, index_col=0, names=['isTissue', 
             'xInd', 'yInd', 'xPos', 'yPos'], header=header_row)
         # Adjust typing
-        coords['Success'] = coords['Success'].astype(bool)
+        coords['isTissue'] = coords['isTissue'].astype(bool)
         coords[['xInd', 'yInd']] = coords[['xInd', 'yInd']].astype(int)
         coords[['xPos', 'yPos']] = coords[['xPos', 'yPos']].astype(float)
         # Create scaled coordinates which correlate well with actual distance
@@ -215,7 +215,7 @@ class Stoat:
         coords['xIndSc'] = coords['xInd'] / (4/3)**0.5
         coords['yIndSc'] = coords['yInd'] / 2
         # Column for data validity, relevant for averaging later
-        coords['Valid'] = coords['Success']
+        coords['Valid'] = coords['isTissue']
 
         self.spatial = coords
 
@@ -348,20 +348,18 @@ class Stoat:
         self.size_factors = size_factors
 
 
-    def average_expression(
+    def determine_neighbours(
         self,
         neighbours: int = 1,
         distance: float = None,
         max_invalid: int = 0,
         edges_invalid: bool = True,
-        kernel: str = 'uniform',
-        sigma: float = 0.5
     ) -> None:
-
+        
 
         if self.spatial is None:
-            raise RuntimeError('The averaging requires spatial information, '
-                'but none has been provided')
+            raise RuntimeError('The neighbour determination requires spatial '
+                'information, but none has been provided')
 
         if distance is None:
             # Use the nearest neighbours for averaging, defined using the
@@ -380,14 +378,14 @@ class Stoat:
         # Count the number of neighbours: total and (in)valid
         self.spatial['NumNeigh'] = self.spatial['Neighbours'].apply(len)
         self.spatial['ValNeighbours'] = self.spatial['Neighbours'].apply(
-            lambda x: [i for i in x if self.spatial.loc[i]['Success']])
+            lambda x: [i for i in x if self.spatial.loc[i]['isTissue']])
         self.spatial['NumValNeigh'] = self.spatial['ValNeighbours'].apply(len)
         self.spatial['NumInvNeigh'] = (self.spatial['NumNeigh'] -
             self.spatial['NumValNeigh'])
 
         # Set the validity column based on the invalid neighbours
         # Also invalidate if the spot itself was invalid
-        self.spatial['Valid'] = self.spatial['Success'] & (
+        self.spatial['Valid'] = self.spatial['isTissue'] & (
             self.spatial['NumInvNeigh'] <= max_invalid)
         # Exclude edges too
         if edges_invalid:
@@ -402,8 +400,26 @@ class Stoat:
             self.spatial['Valid'] = self.spatial['Valid'] & (max_neigh == 
                 self.spatial['NumNeigh'])
 
+
+    def average_expression(
+        self,
+        determine_neighbours: bool = True,
+        neighbours: int = 1,
+        distance: float = None,
+        max_invalid: int = 0,
+        edges_invalid: bool = True,
+        kernel: str = 'uniform',
+        sigma: float = 0.5
+    ) -> None:
+
+        
+        # Determine neighbours for every spot if required (not done previously)
+        if determine_neighbours:
+            self.determine_neighbours(neighbours, distance, max_invalid,
+                edges_invalid)
+
         # All of the kernels exclude points where the measurements were
-        # invalid (i.e. 'Success' is False)
+        # invalid (i.e. 'isTissue' is False)
         if kernel == 'uniform':
             # The contribution of every cell to the average is independent of
             # the distance from the central cell
@@ -480,7 +496,7 @@ class Stoat:
             validity = 'Valid'
         else:
             expr_df = self.expression
-            validity = 'Success'
+            validity = 'isTissue'
 
         # Call the corresponding plotting function, get new figure and axes
         return plot_spot_expression(self.spatial, expr_df, validity, 
