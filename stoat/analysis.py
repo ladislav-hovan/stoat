@@ -218,7 +218,8 @@ def perform_gsea(
         in_cluster = anndata.obs[f'is_{i}'].copy()
         in_cluster.sort_values(ascending=False, inplace=True)
         res_all[i] = gp.gsea(
-            data=anndata.to_df().reindex(in_cluster.index).T, # row -> genes, column-> samples
+            # row -> genes, column -> samples
+            data=anndata.to_df().reindex(in_cluster.index).T, 
             gene_sets=gene_set,
             cls=in_cluster,
             **kwargs,
