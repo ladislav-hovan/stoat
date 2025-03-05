@@ -100,13 +100,14 @@ def plot_spot_expression(
     if ax_create:
         fig, ax = output
 
+    ax_height = ax.get_window_extent().height
     if colour_from is not None:
         # Add a colourbar
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
         cb = plt.colorbar(sm, ax=ax, fraction=0.1, shrink=0.5, pad=0.02)
-        cb.ax.tick_params(labelsize=20)
-        cb.set_label(label, size=30)
+        cb.ax.tick_params(labelsize=ax_height / 60)
+        cb.set_label(label, size=ax_height / 40)
 
     if ax_create:
         return fig, ax

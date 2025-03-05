@@ -270,7 +270,8 @@ class Stoat:
 
     def filter_genes(
         self,
-        drop_non_protein_coding: bool = True
+        drop_non_protein_coding: bool = True,
+        min_spots_expressing: Optional[int] = None,
     ) -> None:
         
 
@@ -284,6 +285,17 @@ class Stoat:
             to_drop = [i for i in self.expression.columns 
                 if i not in ens_to_type.index
                 or ens_to_type.loc[i]['gene_biotype'] != 'protein_coding']
+            print (f'Will drop {len(to_drop)} non-protein coding genes')
+            self.expression.drop(columns=to_drop, inplace=True)
+            self.avg_expression.drop(columns=to_drop, inplace=True)
+
+        if min_spots_expressing is not None:
+            # This will exclude NaNs so work as expected
+            spots_expressing = (self.expression > 0).sum(axis=0)
+            to_drop = [i for i in self.expression.columns
+                if spots_expressing[i] < min_spots_expressing]
+            print (f'Will drop {len(to_drop)} genes expressed in fewer than '
+                f'{min_spots_expressing} cells')
             self.expression.drop(columns=to_drop, inplace=True)
             self.avg_expression.drop(columns=to_drop, inplace=True)
 
@@ -334,6 +346,32 @@ class Stoat:
         expr_genes = set(self.expression.columns)
         motif_df = motif_df[motif_df['target'].isin(expr_genes)]
         self.motif_prior = motif_df
+
+
+    def filter_spots(
+        self,
+        mt_pct_threshold: float = 0.1,
+        min_mrna_counts: Optional[float] = None,
+    ) -> None:
+
+
+        ens_to_name = self.features.set_index('Ensembl')['Name']
+        mt_columns = [ens_id for ens_id in self.expression.columns if
+            ens_to_name[ens_id][:3] == 'MT-']
+        print ('Genes considered as MT genes:', mt_columns)
+        to_keep = (self.expression[mt_columns].sum(axis=1) /
+            self.expression.sum(axis=1)) <= mt_pct_threshold
+        
+        if min_mrna_counts is not None:
+            mrna_counts = self.expression.sum(axis=1, skipna=True)
+            to_keep = to_keep & (mrna_counts >= min_mrna_counts)
+
+        print ('Previous number of accepted spots:',
+            self.spatial['isTissue'].sum())
+        self.spatial['isTissue'] = self.spatial['isTissue'] & to_keep
+        self.spatial['Valid'] = self.spatial['Valid'] & to_keep
+        print ('New number of accepted spots:',
+            self.spatial['isTissue'].sum())
 
 
     def normalise_library_size(
@@ -409,7 +447,8 @@ class Stoat:
         max_invalid: int = 0,
         edges_invalid: bool = True,
         kernel: str = 'uniform',
-        sigma: float = 0.5
+        sigma: float = 0.5,
+        weigh_by_correlation: bool = False,
     ) -> None:
 
         
@@ -418,33 +457,19 @@ class Stoat:
             self.determine_neighbours(neighbours, distance, max_invalid,
                 edges_invalid)
 
-        # All of the kernels exclude points where the measurements were
-        # invalid (i.e. 'isTissue' is False)
-        if kernel == 'uniform':
-            # The contribution of every cell to the average is independent of
-            # the distance from the central cell
-            sum_exp = self.expression.apply(lambda row: 
-                self.expression.loc[self.spatial.loc[row.name]
-                ['ValNeighbours']].sum(), axis=1)
-            self.avg_expression = sum_exp.apply(lambda x: 
-                x / self.spatial['NumValNeigh'])
-            self.avg_expression.fillna(0, inplace=True)
-        elif kernel == 'gaussian':
-            # The contribution is based on the distance from the central cell
-            # and decreases proportionally to exp(-r**2)
-            # Define a gaussian distribution with a provided sigma
-            calculate_gaussian_fixed = lambda r: calculate_gaussian(r, sigma)
-            # Provide the function as an input to distance weighting template
-            compute_weighted_sum = lambda row: weight_by_distance(row, 
-                self.spatial, self.expression, calculate_gaussian_fixed)
-            sum_exp = self.expression.apply(compute_weighted_sum, axis=1)
-            self.avg_expression = sum_exp.apply(lambda row: row.divide(
-                get_distance_to_neighbours(row.name, self.spatial).apply(
-                calculate_gaussian_fixed).sum(), axis=0), axis=1)
-            self.avg_expression.fillna(0, inplace=True)
-        else:
-            raise NotImplementedError(f'Unrecognised kernel: {kernel}'
-                '\nOptions are: uniform, gaussian')
+        neigh_weights = self.spatial['ValNeighbours'].apply(
+            lambda x: np.ones_like(x, dtype=float))
+        neigh_weights *= get_distance_weights(self.spatial, kernel, sigma)
+        if weigh_by_correlation:
+            neigh_weights *= get_correlation_weights(self.spatial, 
+                self.expression)
+
+        nw_sum = neigh_weights.apply(np.sum)
+        sum_exp = self.expression.apply(lambda row: self.expression.loc[
+            self.spatial.loc[row.name]['ValNeighbours']].multiply(
+            neigh_weights.loc[row.name], axis=0).sum(), axis=1)
+        self.avg_expression = sum_exp.divide(nw_sum, axis=0)
+        self.avg_expression.fillna(0, inplace=True)
 
 
     ### Data plotting ###
