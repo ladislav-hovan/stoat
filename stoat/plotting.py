@@ -7,7 +7,8 @@ import numpy as np
 
 from math import ceil
 
-from typing import Optional, Tuple, Mapping, Union, Callable, Iterable
+from typing import Optional, Tuple, Mapping, Union, Callable, Iterable, Any
+from typing import Sequence
 
 import matplotlib.pyplot as plt
 
@@ -17,11 +18,19 @@ from matplotlib.ticker import MaxNLocator
 
 # plt.rcParams['text.usetex'] = True
 
+### Multiplot settings ###
+DIMENSIONS = pd.DataFrame({
+    'type': ['deg', 'gsea'],
+    'overhead': [2.5, 2.5],
+    'width_per_col': [3, 8],
+    'height_per_line': [0.3, 0.5],
+}).set_index('type')
+
 ### Functions ###
 def plot_spot_expression(
     spatial: pd.DataFrame,
     expression: pd.DataFrame,
-    validity: str = 'Success',
+    validity: str = 'isTissue',
     colour_from: Optional[Union[str, Callable]] = None,
     colourmap: str = 'Greens',
     label: Optional[str] = None,
@@ -43,7 +52,7 @@ def plot_spot_expression(
         The dataframe containing the expression levels for the spots
     validity : str, optional
         The column name in the spatial dataframe to be used to determine
-        validity, by default 'Success'
+        validity, by default 'isTissue'
     colour_from : Union[str, Callable], optional
         The name of the gene that the colouring will be based on, or a 
         function to be applied to every spot (for example sum), or None 
@@ -91,13 +100,14 @@ def plot_spot_expression(
     if ax_create:
         fig, ax = output
 
+    ax_height = ax.get_window_extent().height
     if colour_from is not None:
         # Add a colourbar
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
         cb = plt.colorbar(sm, ax=ax, fraction=0.1, shrink=0.5, pad=0.02)
-        cb.ax.tick_params(labelsize=20)
-        cb.set_label(label, size=30)
+        cb.ax.tick_params(labelsize=ax_height / 60)
+        cb.set_label(label, size=ax_height / 40)
 
     if ax_create:
         return fig, ax
@@ -106,7 +116,7 @@ def plot_spot_expression(
 def plot_spot_classification(
     spatial: pd.DataFrame,
     classes: pd.Series,
-    validity: str = 'Success',
+    validity: str = 'isTissue',
     colourmap: str = 'Set2',
     legend: bool = True,
     labels: Optional[Mapping] = None,
@@ -128,7 +138,7 @@ def plot_spot_classification(
         A series of class names for the spots
     validity : str, optional
         The column name in the spatial dataframe to be used to determine
-        validity ('Valid' or 'Success'), by default 'Success'
+        validity ('Valid' or 'isTissue'), by default 'isTissue'
     colourmap : str, optional
         The name of the matplotlib colourmap to use, by default 'Set2'
     legend : bool, optional
@@ -414,6 +424,78 @@ def plot_hexagons(
         return fig, ax
     
 
+def distribute_plots(
+    p_function: Callable,
+    n_plots: int,
+    n_cols: int,
+    n_lines: int = 10,
+    height_per_line = 0.3,
+    overhead: float = 0.0,
+    width_per_col: float = 3.0,
+    fig: Optional[plt.Figure] = None,
+    p_options: Optional[Sequence[Mapping[Any, Any]]] = None,
+) -> Tuple[plt.Figure, plt.Axes]:
+    
+
+    n_rows = ceil(n_plots / n_cols)
+
+    if fig is None:
+        fig,ax = plt.subplots(n_rows, n_cols, 
+            figsize=(n_cols * width_per_col, 
+                n_rows * (n_lines + overhead) * height_per_line),
+            tight_layout=True)
+    else:
+        ax = fig.subplots(n_rows, n_cols)
+
+    for i in range(n_plots):
+        ax_i = ax[i // n_cols][i % n_cols]
+        p_function(**p_options[i], ax=ax_i)
+    # Hide the possible extra axes from the plot
+    for i in range(n_plots, n_rows * n_cols):
+        ax_i = ax[i // n_cols][i % n_cols]
+        ax_i.set_axis_off()
+
+    return fig,ax
+
+
+def plot_deg_data_single(
+    data: dict,
+    n_genes: int = 10,
+    max_score: float = 50,
+    score_spacing: float = 10,
+    cmap: str = 'tab20',
+    cluster_id: int = 0,
+    max_clusters: int = 20,
+    ax: Optional[plt.Axes] = None,
+) -> plt.Axes:
+    
+
+    dims = DIMENSIONS.loc['deg']
+    if ax is None:
+        _,ax = plt.subplots(figsize=(dims['width_per_col'], 
+            (dims['overhead'] + n_genes) * dims['height_per_line']))
+
+    cm = plt.colormaps[cmap]
+    label = str(cluster_id)  # The labels are strings, not integers
+    ax.set_xlim(0, max_score)
+    ax.set_ylim(-n_genes, 1)
+    ax.grid(False)
+    ax.set_xticks([i for i in range(0, max_score + 1, score_spacing)])
+    ax.set_yticks([])  # No yticks
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # Plot all the bars
+    ax.barh([-i for i in range(n_genes)], 
+        data['scores'][label][:n_genes] - 1, 
+        color=cm(cluster_id / max_clusters), align='center')
+    # Add the labels
+    for pos,(n,s) in enumerate(zip(data['names'][label][:n_genes], 
+        data['scores'][label][:n_genes])):
+        ax.text(s, -pos, n, ha='left', va='center')
+
+    return ax
+
+
 def plot_deg_data(
     data: dict,
     n_genes: int = 10,
@@ -425,47 +507,27 @@ def plot_deg_data(
     fig: Optional[plt.Figure] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     
-    n_clusters = len(data['scores'][0])
-    n_rows = ceil(n_clusters / n_cols)
 
-    # In order to keep bar thickness roughly consistent among different number
-    # of genes, we need to add a constant that represents the axes space
-    # This value has been determined by trial and error
-    OVERHEAD = 2.5
-    # Other internal plot settings
-    WIDTH_PER_COL = 3
-    HEIGHT_PER_GENE = 3 / 10
-    if fig is None:
-        fig,ax = plt.subplots(n_rows, n_cols, 
-            figsize=(n_cols * WIDTH_PER_COL, 
-                n_rows * (n_genes + OVERHEAD) * HEIGHT_PER_GENE),
-            tight_layout=True)
-    else:
-        ax = fig.subplots(n_rows, n_cols)
-    cm = plt.colormaps[cmap]
+    dims = DIMENSIONS.loc['deg']
+    n_plots = len(data['scores'][0])
+    common_opts = {'max_score': max_score, 'score_spacing': score_spacing,
+        'cmap': cmap, 'max_clusters': max_clusters, 'data': data,
+        'n_genes': n_genes}
+    p_options = [common_opts.copy() for _ in range(n_plots)]
+    for i in range(n_plots):
+        p_options[i]['cluster_id'] = i
 
-    for i in range(n_clusters):
-        ax_i = ax[i // n_cols][i % n_cols]
-        label = str(i)  # The labels for the clusters are strings, not integers
-        ax_i.set_xlim(0, max_score)
-        ax_i.set_ylim(-n_genes, 1)
-        ax_i.grid(False)
-        ax_i.set_xticks([i for i in range(0, max_score + 1, score_spacing)])
-        ax_i.set_yticks([])  # No yticks
-        ax_i.spines['top'].set_visible(False)
-        ax_i.spines['right'].set_visible(False)
-        # Plot all the bars
-        ax_i.barh([-i for i in range(n_genes)], 
-            data['scores'][label][:n_genes] - 1, 
-            color=cm(i / max_clusters), align='center')
-        # Add the labels
-        for pos,(n,s) in enumerate(zip(data['names'][label][:n_genes], 
-            data['scores'][label][:n_genes])):
-            ax_i.text(s, -pos, n, ha='left', va='center')
-    # Hide the possible extra axes from the plot
-    for i in range(n_clusters, n_rows * n_cols):
-        ax_i = ax[i // n_cols][i % n_cols]
-        ax_i.set_axis_off()
+    fig,ax = distribute_plots(
+        p_function=plot_deg_data_single,
+        n_plots=n_plots,
+        n_cols=n_cols,
+        n_lines=n_genes,
+        height_per_line=dims['height_per_line'],
+        overhead=dims['overhead'],
+        width_per_col=dims['width_per_col'],
+        fig=fig,
+        p_options=p_options,
+    )
 
     return fig,ax
 
@@ -534,6 +596,7 @@ def plot_gsea_dotplot(
     figsize: Tuple[float, float] = (4, 6),
 ) -> plt.Axes:
 
+
     df = df.loc[df[column] <= threshold]
     if len(df) == 0:
         msg = f'No enriched terms with {column} <= {threshold}'
@@ -592,6 +655,7 @@ def plot_gsea_dotplot(
     ax.set_axisbelow(True)
     ax.grid(axis='y', zorder=-1)
     ax.margins(x=0.25)
+    ax.set_ylim(-1, len(df))
 
     handles, labels = sc.legend_elements(
         prop='sizes',
@@ -627,3 +691,95 @@ def plot_gsea_dotplot(
         spine.set_visible(False)
 
     return ax
+
+
+def plot_gsea_dotplots(
+    data: Mapping[int, pd.DataFrame],
+    n_cols: int = 3,
+    column: str = 'FDR q-val',
+    n_terms: int = 10,
+    threshold: float = 0.05,
+    x: str = 'NES',
+    y: str = 'Term',
+    cmap: str = 'viridis_r',
+    dot_scale: float = 5.0,
+    fig: Optional[plt.Figure] = None,
+) -> Tuple[plt.Figure, plt.Axes]:
+
+
+    dims = DIMENSIONS.loc['gsea']
+    n_plots = len(data)
+    common_opts = {'column': column, 'threshold': threshold,
+        'cmap': cmap, 'x': x, 'y': y, 'dot_scale': dot_scale,
+        'n_terms': n_terms}
+    p_options = [common_opts.copy() for _ in range(n_plots)]
+    for pos,(k,v) in enumerate(data.items()):
+        p_options[pos]['df'] = v
+        p_options[pos]['title'] = f'Cluster {k}'
+
+    fig,ax = distribute_plots(
+        p_function=plot_gsea_dotplot,
+        n_plots=n_plots,
+        n_cols=n_cols,
+        n_lines=n_terms,
+        height_per_line=dims['height_per_line'],
+        overhead=dims['overhead'],
+        width_per_col=dims['width_per_col'],
+        fig=fig,
+        p_options=p_options,
+    )
+
+    return fig,ax
+
+
+def plot_cluster_matching(
+    first: pd.Series,
+    second: pd.Series,
+    n_cols: int = 4,
+    cmap: str = 'tab20',
+    max_clusters: int = 20,
+    fig: Optional[plt.Figure] = None,
+    legend: bool = True,
+) -> Tuple[plt.Figure, plt.Axes]:
+    
+
+    comp = pd.DataFrame([first.rename('first'), second.rename('second')]).T
+    matching = comp.groupby('first').value_counts()
+    first_labels = comp['first'].unique()
+    second_labels = comp['second'].unique()
+
+    n_clusters_1 = len(first_labels) - int(-1 in first_labels)
+    n_clusters_2 = len(second_labels) - int(-1 in second_labels)
+    n_clusters = max(n_clusters_1, n_clusters_2)
+    n_rows = ceil(n_clusters_1 / n_cols)
+
+    cm = plt.colormaps[cmap]
+    colours = {i: cm(i / max_clusters) for i in range(max_clusters)}
+    colours[-1] = 'grey'
+
+    if fig is None:
+        fig,ax = plt.subplots(n_rows, n_cols, figsize=(3*n_cols, 3.5*n_rows), 
+            tight_layout=True)
+    else:
+        ax = fig.subplots(n_rows, n_cols)
+        
+    for i in range(n_clusters_1):
+        ax_i = ax[i // n_cols][i % n_cols]
+        ax_i.pie(matching.loc[i].values,
+            colors=[colours[k] for k in matching.loc[i].index])
+        ax_i.set_title(f'Cluster {i}', weight='bold', color='white',
+            backgroundcolor=colours[i])
+    # Hide the possible extra axes from the plot
+    for i in range(n_clusters_1, n_rows * n_cols):
+        ax_i = ax[i // n_cols][i % n_cols]
+        ax_i.set_axis_off()
+    
+    if legend:
+        custom_lines = ([plt.Line2D([0], [0], color=cm(i / max_clusters), lw=8)
+            for i in range(n_clusters)] + 
+            [plt.Line2D([0], [0], color='grey', lw=8)])
+        fig.legend(custom_lines, [f'Cluster {i}' for i in range(n_clusters)] +
+            ['Not in cluster'],
+            bbox_to_anchor=(1, 1), loc='upper left', handlelength=0.7)
+
+    return fig,ax

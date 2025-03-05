@@ -155,7 +155,7 @@ def plot_clusters(
     classes: pd.Series,
     n_classes: int,
     ordering: Iterable[str],
-    validity: str = 'Success',
+    validity: str = 'isTissue',
     ax: Optional[plt.Axes] = None,
     plotting_opt: Mapping[Any, Any] = {},
 ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
@@ -182,7 +182,7 @@ def cluster_spots(
     df: pd.DataFrame,
     spatial: pd.DataFrame,
     ax: Optional[plt.Axes] = None,
-    validity: str = 'Success',
+    validity: str = 'isTissue',
     normalise: bool = True,
     normalise_genes: bool = True,
     clustering: str = 'Leiden',

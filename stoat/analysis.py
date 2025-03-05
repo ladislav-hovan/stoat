@@ -70,36 +70,37 @@ def prepare_stoat_object(
 
 def describe_expression(
     stoat_obj: Stoat,
-    save_to: FILE_LIKE
-) -> Tuple[plt.Figure, plt.Axes]:   
+    ax: Optional[plt.Axes] = None,
+) -> Tuple[plt.Figure, plt.Axes]:
     # Provides details about the expression sparsity
     expr_df = stoat_obj.expression
     spatial_df = stoat_obj.spatial
 
     print ('Proportion of spots with tissue: '
-        f'{100 * spatial_df["Success"].sum() / len(spatial_df):.2f} %')
-    avg_sparsity = (expr_df.loc[spatial_df['Success']] == 0).mean(
+        f'{100 * spatial_df["isTissue"].sum() / len(spatial_df):.2f} %')
+    avg_sparsity = (expr_df.loc[spatial_df['isTissue']] == 0).mean(
         axis=1).mean()
     print ('Average sparsity of genes in a spot with tissue: '
         f'{100 * avg_sparsity:.2f} %')
     
     gene_coverage = {}
     cov_lambda = lambda row: np.mean(row > 0)
-    gene_coverage[-1] = expr_df.loc[spatial_df['Success']].apply(
+    gene_coverage[-1] = expr_df.loc[spatial_df['isTissue']].apply(
         cov_lambda, axis=1)
     stoat_obj.filter_genes()
-    success = stoat_obj.expression.loc[spatial_df['Success']]
+    success = stoat_obj.expression.loc[spatial_df['isTissue']]
     gene_coverage[0] = success.apply(cov_lambda, axis=1)
     for i in range(1, 4):
         stoat_obj.average_expression(neighbours=i)
-        avg_success = stoat_obj.avg_expression.loc[spatial_df['Success']]
+        avg_success = stoat_obj.avg_expression.loc[spatial_df['isTissue']]
         gene_coverage[i] = avg_success.apply(cov_lambda, axis=1)
 
-    fig,ax = plt.subplots(figsize=(8,8))
+    if ax is None:
+        _,ax = plt.subplots(figsize=(8,8))
     labels = ['Raw data', 'Filtered genes', 'Filtered + 1 neighbour',
         'Filtered + 2 neighbours', 'Filtered + 3 neighbours']
-    for i,l in enumerate(labels):
-        gene_coverage[i-1].hist(bins=120, alpha=0.5, range=(0,1), label=l)
+    for label,data in zip(labels, gene_coverage.values()):
+        ax.hist(data, bins=120, range=(0,1), alpha=0.5, label=label)
 
     ax.set_xlim(0, 1)
     ax.set_xlabel('Proportion of genes with non-zero reads', size=16)
@@ -107,9 +108,7 @@ def describe_expression(
     ax.tick_params(labelsize=12)
     ax.legend(fontsize=12)
 
-    fig.savefig(save_to, dpi=300, bbox_inches='tight')
-
-    return fig,ax
+    return ax
 
 
 def calculate_indegrees(
@@ -218,7 +217,8 @@ def perform_gsea(
         in_cluster = anndata.obs[f'is_{i}'].copy()
         in_cluster.sort_values(ascending=False, inplace=True)
         res_all[i] = gp.gsea(
-            data=anndata.to_df().reindex(in_cluster.index).T, # row -> genes, column-> samples
+            # row -> genes, column -> samples
+            data=anndata.to_df().reindex(in_cluster.index).T, 
             gene_sets=gene_set,
             cls=in_cluster,
             **kwargs,
