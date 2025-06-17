@@ -1,6 +1,6 @@
-numpy
-pandas
-netZooPy
 biomart
 matplotlib
+netZooPy
+numpy
+pandas
 scanpy
