@@ -33,7 +33,7 @@ class Stoat:
         computing: COMPUTING_TYPE = 'cpu',
         output_dir: str = 'output/',
         output_extension: EXTENSION = 'tsv',
-        auto_calculate: bool = False
+        auto_calculate: bool = False,
     ) -> None:
 
 
