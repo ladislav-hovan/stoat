@@ -182,7 +182,22 @@ class Stoat:
 
     def load_spatial(
         self,
-        spatial_path: str
+        spatial_path: str,
+        data_type = 'visium',
+    ) -> None:
+        
+        if data_type == 'visium':
+            self.load_spatial_visium(spatial_path)
+        elif data_type == 'visium_hd':
+            self.load_spatial_visium_hd(spatial_path)
+        else:
+            raise NotImplementedError('Data type not supported: '
+                f'{data_type}, use one of: visium, visium_hd')
+
+
+    def load_spatial_visium(
+        self,
+        spatial_path: str,
     ) -> None:
         """
         _summary_
@@ -223,6 +238,14 @@ class Stoat:
             len(self.spatial)):
             print ('The lengths of the spatial and expression data do not ' + 
                 'match, this may cause problems')
+
+
+    def load_spatial_visium_hd(
+        self,
+        spatial_path: str,
+    ) -> None:
+        
+        print ('Not implemented yet')
 
 
     ### Input modification ###
@@ -447,7 +470,7 @@ class Stoat:
         max_invalid: int = 0,
         edges_invalid: bool = True,
         kernel: str = 'uniform',
-        sigma: float = 0.5,
+        sigma: float = 0.4,
         weigh_by_correlation: bool = False,
     ) -> None:
 
@@ -629,7 +652,7 @@ class Stoat:
             print (f'Calculating the STOAT network for spot {bc}')
 
             # PANDA network with the current spot missing
-            panda_obj = Panda(panda_input.drop(bc, axis=1), self.motif_prior, 
+            panda_obj = Panda(panda_input.drop(bc, axis=1), self.motif_prior,
                 self.ppi_prior, computing=self.computing)
 
             panda_net = panda_obj.panda_network
