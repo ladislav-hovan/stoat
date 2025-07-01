@@ -2,8 +2,8 @@
 requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
-[packages]
-find = {}
+[tool.setuptools.packages.find]
+namespaces = false
 
 [project]
 name = "netzoopy-stoat"
@@ -37,6 +37,9 @@ Repository = "https://github.com/ladislav-hovan/stoat"
 version_scheme = "only-version"
 local_scheme = "no-local-version"
 
+[tool.pytest.ini_options]
+filterwarnings = ['ignore:pkg_resources is deprecated as an API']
+
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
@@ -52,6 +55,9 @@ netzoopy-stoat = { path = ".", editable = true }
 
 [tool.pixi.feature.stoat-dev.dependencies]
 pytest = "*"
+
+[tool.pixi.feature.stoat-dev.tasks]
+test = "pytest"
 
 [tool.pixi.environments]
 stoat-dev = ["stoat-dev"]

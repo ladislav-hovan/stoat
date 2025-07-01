@@ -166,7 +166,7 @@ class Stoat:
         
         if type(expression_path) == str:
             # Load the DataFrame
-            self.expression = pd.read_csv(expression_path, sep=sep, 
+            self.expression = pd.read_csv(expression_path, sep=sep,
                 index_col=index_col)
             self.avg_expression = self.expression.copy()
         else:
@@ -245,7 +245,14 @@ class Stoat:
         spatial_path: str,
     ) -> None:
         
-        print ('Not implemented yet')
+        coords = pd.read_parquet(spatial_path)
+        
+        self.spatial = coords
+
+        if self.expression is not None and (len(self.expression) != 
+            len(self.spatial)):
+            print ('The lengths of the spatial and expression data do not ' + 
+                'match, this may cause problems')
 
 
     ### Input modification ###
