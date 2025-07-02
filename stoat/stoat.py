@@ -1,17 +1,14 @@
 ### Imports ###
-from typing import Optional, Union, Iterable, Tuple, Literal, List
+import os.path
 import typing
 
 import pandas as pd
 import numpy as np
 
-import os.path
-
-from io import BytesIO
-
-from netZooPy.panda.panda import Panda
-
 from biomart import BiomartServer
+from netZooPy.panda.panda import Panda
+from io import BytesIO
+from typing import Optional, Union, Iterable, Tuple, Literal, List
 
 from stoat.plotting import *
 from stoat.functions import *
@@ -33,7 +30,7 @@ class Stoat:
         computing: COMPUTING_TYPE = 'cpu',
         output_dir: str = 'output/',
         output_extension: EXTENSION = 'tsv',
-        auto_calculate: bool = False
+        auto_calculate: bool = False,
     ) -> None:
 
 
@@ -166,7 +163,7 @@ class Stoat:
         
         if type(expression_path) == str:
             # Load the DataFrame
-            self.expression = pd.read_csv(expression_path, sep=sep, 
+            self.expression = pd.read_csv(expression_path, sep=sep,
                 index_col=index_col)
             self.avg_expression = self.expression.copy()
         else:
@@ -182,7 +179,22 @@ class Stoat:
 
     def load_spatial(
         self,
-        spatial_path: str
+        spatial_path: str,
+        data_type = 'visium',
+    ) -> None:
+        
+        if data_type == 'visium':
+            self.load_spatial_visium(spatial_path)
+        elif data_type == 'visium_hd':
+            self.load_spatial_visium_hd(spatial_path)
+        else:
+            raise NotImplementedError('Data type not supported: '
+                f'{data_type}, use one of: visium, visium_hd')
+
+
+    def load_spatial_visium(
+        self,
+        spatial_path: str,
     ) -> None:
         """
         _summary_
@@ -217,6 +229,21 @@ class Stoat:
         # Column for data validity, relevant for averaging later
         coords['Valid'] = coords['isTissue']
 
+        self.spatial = coords
+
+        if self.expression is not None and (len(self.expression) != 
+            len(self.spatial)):
+            print ('The lengths of the spatial and expression data do not ' + 
+                'match, this may cause problems')
+
+
+    def load_spatial_visium_hd(
+        self,
+        spatial_path: str,
+    ) -> None:
+        
+        coords = pd.read_parquet(spatial_path)
+        
         self.spatial = coords
 
         if self.expression is not None and (len(self.expression) != 
@@ -447,7 +474,7 @@ class Stoat:
         max_invalid: int = 0,
         edges_invalid: bool = True,
         kernel: str = 'uniform',
-        sigma: float = 0.5,
+        sigma: float = 0.4,
         weigh_by_correlation: bool = False,
     ) -> None:
 
@@ -629,7 +656,7 @@ class Stoat:
             print (f'Calculating the STOAT network for spot {bc}')
 
             # PANDA network with the current spot missing
-            panda_obj = Panda(panda_input.drop(bc, axis=1), self.motif_prior, 
+            panda_obj = Panda(panda_input.drop(bc, axis=1), self.motif_prior,
                 self.ppi_prior, computing=self.computing)
 
             panda_net = panda_obj.panda_network

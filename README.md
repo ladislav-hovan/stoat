@@ -89,7 +89,7 @@ This README is based on a template made by
 
 
 ## Contact
-Created by Ladislav Hovan (ladislav.hovan@ncmm.uio.no).
+Created by Ladislav Hovan (ladislav.hovan@ncmbm.uio.no).
 Feel free to contact me!
 
 

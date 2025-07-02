@@ -1,6 +1,7 @@
-numpy
-pandas
-netZooPy
 biomart
 matplotlib
+netZooPy
+numpy
+pandas
 scanpy
+setuptools  # Hidden dependency of netZooPy

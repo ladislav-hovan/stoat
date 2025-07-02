@@ -1,17 +1,20 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+namespaces = false
+
 [project]
-name = "stoat"
+name = "netzoopy-stoat"
 authors = [
-    {name = "Ladislav Hovan", email = "ladislav.hovan@ncmm.uio.no"},
+    {name = "Ladislav Hovan", email = "ladislav.hovan@ncmbm.uio.no"},
 ]
-version = "0.0.1"
+dynamic = ["version"]
 description = """A package to generate spatially resolved gene \
     regulatory networks from spatial transcriptomics data."""
 readme = "README.md"
-license = {text = "GPL-3"}
+license = "GPL-3.0-or-later"
 keywords = ["transcription-factors", "gene-regulatory-network"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -19,13 +22,43 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "pandas",
-    "numpy",
-    "netZooPy",
     "biomart",
-    "scanpy",
     "matplotlib",
+    "netZooPy",
+    "numpy",
+    "pandas",
+    "scanpy",
+    "setuptools",  # Hidden dependency of netZooPy
 ]
 
 [project.urls]
 Repository = "https://github.com/ladislav-hovan/stoat"
+
+[tool.setuptools_scm]
+version_scheme = "only-version"
+local_scheme = "no-local-version"
+
+[tool.pytest.ini_options]
+filterwarnings = ['ignore:pkg_resources is deprecated as an API']
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+python = "3.10.*"
+setuptools = "*"  # This is required by netZooPy (sambar.py)
+
+[tool.pixi.pypi-dependencies]
+netzoopy-stoat = { path = ".", editable = true }
+
+[tool.pixi.feature.stoat-dev.dependencies]
+pytest = "*"
+
+[tool.pixi.feature.stoat-dev.tasks]
+test = "pytest"
+
+[tool.pixi.environments]
+stoat-dev = ["stoat-dev"]

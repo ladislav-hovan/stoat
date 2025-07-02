@@ -3,26 +3,26 @@ from stoat import Stoat
 import pandas as pd
 import pandas.testing as pt
 
-#def setup_stoat_obj():
-#
+# def setup_stoat_obj():
+
 #    # Loads expression and spatial into a trial object
 #    stoat_obj = Stoat(motif_prior='../../input/priors/new/tf_prior_fixed.tsv', 
 #        ppi_prior='../../input/priors/new/ppi_prior.tsv',
 #        output_dir='output/',
 #        computing='gpu',
 #        output_extension='feather')
-#    
+   
 #    data_path = '../../input/data/xavier/frozen/STNR10A/'
 #    stoat_obj.load_expression_raw(
 #        matrix_path=data_path + 'matrix.mtx',
 #        barcodes_path=data_path + 'barcodes.tsv',
 #        features_path=data_path + 'features.tsv'
 #    )
-#    
+   
 #    stoat_obj.load_spatial(data_path + 'tissue_positions_list.csv')
 #    stoat_obj.ensure_compatibility()
 #    stoat_obj.remove_nan()
-#
+
 #    return stoat_obj
 
 
@@ -41,4 +41,3 @@ def test_normalise_library_size():
         [2/1.25, 2/1.25, 1/1.25],
         [0, 0, 4]
     ]))
-
