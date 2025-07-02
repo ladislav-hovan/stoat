@@ -1,17 +1,15 @@
 ### Imports ###
 import hdbscan
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import scanpy as sc
-import numpy as np
-
-import matplotlib.pyplot as plt
 
 from math import ceil
+from typing import Any, Iterable, Mapping, Optional, Tuple
 
-from typing import Optional, Mapping, Iterable, Any, Tuple
-
-from stoat.plotting import plot_spot_classification
+from stoat.modules.plotting import plot_spot_classification
 
 ### Functions ###
 def normalise_data(

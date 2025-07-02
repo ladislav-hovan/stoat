@@ -1,18 +1,17 @@
 ### Imports and definitions ###
-import os
 import glob
+import os
 
-import pandas as pd
-import numpy as np
-import scanpy as sc
 import gseapy as gp
 import matplotlib.pyplot as plt
-
-from stoat.stoat import Stoat
-from stoat.clustering import *
-from stoat.stoat_analysis import StoatAnalysis
+import numpy as np
+import pandas as pd
+import scanpy as sc
 
 from typing import Union
+
+from stoat.stoat import Stoat
+from stoat.modules.clustering import *
 
 PATH = Union[str, os.PathLike]
 FILE_LIKE = Union[str, bytes, os.PathLike]

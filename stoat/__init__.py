@@ -1,1 +1,1 @@
-from stoat.stoat import Stoat
+from .stoat import Stoat

@@ -1,5 +1,5 @@
 ### Imports ###
-from stoat.clustering import *
+from stoat.modules.clustering import *
 
 from typing import Optional, Literal, Dict, Any
 

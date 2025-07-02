@@ -4,7 +4,7 @@ import pandas as pd
 
 from math import exp
 
-### Functions intended for averaging ###
+### Functions ###
 def calculate_gaussian(
     r: float, 
     sigma: float

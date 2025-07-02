@@ -2,25 +2,20 @@
 import os.path
 import typing
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from biomart import BiomartServer
-from netZooPy.panda.panda import Panda
 from io import BytesIO
-from typing import Optional, Union, Iterable, Tuple, Literal, List
+from netZooPy.panda.panda import Panda
+from typing import Iterable, List, Optional, Tuple, Union
 
-from stoat.plotting import *
-from stoat.functions import *
-
-COMPUTING_TYPE = Literal['cpu', 'gpu']
-EXTENSION = Literal['tsv', 'feather', 'parquet']
-
-ENSEMBL_URL = 'http://www.ensembl.org/biomart/'
+from stoat.config import *
+from stoat.modules.plotting import *
+from stoat.modules.utils import get_distance_weights, get_correlation_weights
 
 ### Class definition ###
 class Stoat:
-
     ### Initialisation ###
     def __init__(
         self,
