@@ -4,3 +4,4 @@ netZooPy
 numpy
 pandas
 scanpy
+setuptools  # Hidden dependency of netZooPy

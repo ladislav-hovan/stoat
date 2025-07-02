@@ -28,6 +28,7 @@ dependencies = [
     "numpy",
     "pandas",
     "scanpy",
+    "setuptools",  # Hidden dependency of netZooPy
 ]
 
 [project.urls]
