@@ -2,8 +2,6 @@
 import numpy as np
 import pandas as pd
 
-from typing import Callable
-
 from math import exp
 
 ### Functions intended for averaging ###

@@ -1,17 +1,14 @@
 ### Imports ###
-from typing import Optional, Union, Iterable, Tuple, Literal, List
+import os.path
 import typing
 
 import pandas as pd
 import numpy as np
 
-import os.path
-
-from io import BytesIO
-
-from netZooPy.panda.panda import Panda
-
 from biomart import BiomartServer
+from netZooPy.panda.panda import Panda
+from io import BytesIO
+from typing import Optional, Union, Iterable, Tuple, Literal, List
 
 from stoat.plotting import *
 from stoat.functions import *
