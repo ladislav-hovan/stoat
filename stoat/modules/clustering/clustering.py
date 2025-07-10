@@ -53,7 +53,7 @@ def cluster_leiden(
     adata: sc.AnnData,
     clustering_opt: Mapping[Any, Any] = {},
 ) -> pd.Series:
-    # Performs the Leiden clustering on the provided AnnData object with 
+    # Performs the Leiden clustering on the provided AnnData object with
     # principal components
     sc.pp.neighbors(adata)
     sc.tl.umap(adata)
@@ -88,7 +88,7 @@ def change_class_annotation(
     exclude_extra: bool = False,
     max_classes: int = 20,
 ):
-    
+
     # Index classes in the same way as the spatial DataFrame, fill in missing
     classes = classes.reindex(spatial.index, fill_value=-1)
     # Count the number of actual classes (not -1)
@@ -105,13 +105,13 @@ def change_class_annotation(
                 lambda x: x if x <= max_classes - 1 else -1)
             ordering = [i for i in range(max_classes)]
         else:
-            # Group the extra classes into one called 
+            # Group the extra classes into one called
             classes_mod = classes.apply(
-                lambda x: x if int(x) < max_classes - 1 else 
-                f'{max_classes - 1}+') 
-            ordering = ([i for i in range(max_classes - 1)] + 
+                lambda x: x if int(x) < max_classes - 1 else
+                f'{max_classes - 1}+')
+            ordering = ([i for i in range(max_classes - 1)] +
                 [f'{max_classes - 1}+'])
-    
+
     return (classes_mod, ordering, n_classes)
 
 
@@ -127,10 +127,10 @@ def determine_cluster_labels(
     exclude_extra: bool = False,
     max_classes: int = 20,
 ) -> Tuple[pd.Series, list, int]:
-    # Determines the clusters in the data and returns the labels to be 
+    # Determines the clusters in the data and returns the labels to be
     # used for plotting
     # Subset and scale data
-    df_scaled = normalise_data(df, spatial, validity, normalise, 
+    df_scaled = normalise_data(df, spatial, validity, normalise,
         normalise_genes)
     # Convert to AnnData which contains the principal components
     adata = create_anndata_with_pc(df_scaled, n_variable)
@@ -144,7 +144,7 @@ def determine_cluster_labels(
         print ('Implemented types: Leiden, HDBScan')
         return
 
-    return change_class_annotation(classes, spatial, exclude_extra, 
+    return change_class_annotation(classes, spatial, exclude_extra,
         max_classes)
 
 
@@ -161,13 +161,13 @@ def plot_clusters(
     # DataFrame and the cluster labels
     # Select which spots to display, rest is gray
     spatial['Acceptable'] = (spatial[validity] & (classes != -1))
-    plotting_opt_final = dict(colourmap='tab20', validity='Acceptable', 
-        n_classes=20, legend=False, ordering=ordering, 
+    plotting_opt_final = dict(colourmap='tab20', validity='Acceptable',
+        n_classes=20, legend=False, ordering=ordering,
         title=f'{n_classes} classes total')
     plotting_opt_final.update(plotting_opt)
     if ax is None:
         # Create a new Figure and Axes
-        fig,ax = plot_spot_classification(spatial, classes=classes, 
+        fig,ax = plot_spot_classification(spatial, classes=classes,
             **plotting_opt_final)
         return fig,ax
     else:
@@ -189,30 +189,30 @@ def cluster_spots(
     exclude_extra: bool = False,
     plotting_opt: Mapping[Any, Any] = {},
 ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
-    # Clusters the spots based on the provided pandas DataFrame with 
+    # Clusters the spots based on the provided pandas DataFrame with
     # data and a spatial pandas DataFrame
     classes, ordering, n_classes = determine_cluster_labels(
-        df, spatial, validity, normalise, normalise_genes, clustering, 
+        df, spatial, validity, normalise, normalise_genes, clustering,
         clustering_opt, n_variable, exclude_extra)
-    
-    return plot_clusters(spatial, classes, n_classes, ordering, validity, ax, 
+
+    return plot_clusters(spatial, classes, n_classes, ordering, validity, ax,
         plotting_opt)
-        
-    
+
+
 def compare_clusterings(
-    df: pd.DataFrame, 
-    spatial: pd.DataFrame, 
-    arg_list: Iterable[dict], 
+    df: pd.DataFrame,
+    spatial: pd.DataFrame,
+    arg_list: Iterable[dict],
     plots_per_row: int = 2,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    # Plots a meta figure displaying the clustering using different 
+    # Plots a meta figure displaying the clustering using different
     # options
     # Figure out how many rows and columns are actually needed
     n = len(arg_list)
     width = min(n, plots_per_row)
     length = ceil(n / plots_per_row)
     # Make a figure with subplots of that size
-    fig,ax = plt.subplots(length, width, figsize=(width*8, length*8), 
+    fig,ax = plt.subplots(length, width, figsize=(width*8, length*8),
         tight_layout=True)
     # Make sure Axes are a 2D array to simplify indexing
     ax = np.reshape(ax, (length, width))
@@ -222,5 +222,5 @@ def compare_clusterings(
         y = pos % plots_per_row
         # Plot the clustering with the given arguments on those Axes
         cluster_spots(df, spatial, ax=ax[x][y], **arg)
-        
+
     return fig,ax

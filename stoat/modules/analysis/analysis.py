@@ -23,17 +23,17 @@ def analyse_fully(
     indegree_file: Optional[FILE_LIKE],
     extension: str,
     output_folder: PATH
-) -> None:    
+) -> None:
     # Runs the entire pipeline
     if not os.path.isdir(output_folder):
-        os.makedirs(output_folder)    
+        os.makedirs(output_folder)
 
     describe_expression(stoat_obj)
 
     if indegree_file is None:
         if len(glob.glob(os.path.join(stoat_folder, 'indegree_*'))) == 0:
             calculate_indegrees(stoat_folder, extension)
-        indegree_file = os.path.join(output_folder, 
+        indegree_file = os.path.join(output_folder,
             f'final_indegree.{extension}')
         collate_indegrees(stoat_folder, extension, indegree_file)
 
@@ -44,10 +44,10 @@ def analyse_fully(
 def prepare_stoat_object(
     prior_dir: PATH,
     data_dir: PATH
-) -> Stoat: 
+) -> Stoat:
     # Loads a STOAT object
     stoat_obj = Stoat(
-        motif_prior=prior_dir + 'tf_prior_fixed.tsv', 
+        motif_prior=prior_dir + 'tf_prior_fixed.tsv',
         ppi_prior=prior_dir + 'ppi_prior.tsv',
         computing='gpu',
         output_extension='feather')
@@ -56,10 +56,10 @@ def prepare_stoat_object(
         matrix_path=data_dir + 'matrix.mtx',
         barcodes_path=data_dir + 'barcodes.tsv',
         features_path=data_dir + 'features.tsv')
-    
+
     positions_file = glob.glob(data_dir + 'tissue_positions*.csv')[0]
     stoat_obj.load_spatial(positions_file)
-    
+
     stoat_obj.ensure_compatibility()
     stoat_obj.remove_nan()
     stoat_obj.drop_deprecated()
@@ -81,7 +81,7 @@ def describe_expression(
         axis=1).mean()
     print ('Average sparsity of genes in a spot with tissue: '
         f'{100 * avg_sparsity:.2f} %')
-    
+
     gene_coverage = {}
     cov_lambda = lambda row: np.mean(row > 0)
     gene_coverage[-1] = expr_df.loc[spatial_df['isTissue']].apply(
@@ -123,7 +123,7 @@ def calculate_indegrees(
 def load_into_df(
     filename: FILE_LIKE,
     extension: str,
-) -> pd.DataFrame:  
+) -> pd.DataFrame:
     # Loads the df from a file with a given extension
     if extension == 'tsv':
         df = pd.read_csv(filename, sep='\t', index_col=0)
@@ -135,7 +135,7 @@ def load_into_df(
         df = pd.read_parquet(filename)
     else:
         print ('Extension not recognised')
-        
+
     return df
 
 
@@ -143,7 +143,7 @@ def save_into_file(
     df: pd.DataFrame,
     filename: FILE_LIKE,
     extension: str,
-) -> None: 
+) -> None:
     # Saves the df into a file with proper extension
     if extension == 'tsv':
         df.to_csv(filename, sep='\t')
@@ -163,10 +163,10 @@ def collate_indegrees(
     stoat_folder: PATH,
     extension: str,
     output_file: FILE_LIKE,
-) -> None:  
+) -> None:
     # Gathers the data from all indegree files in a folder and puts
-    # it into a single file   
-    id_files = glob.glob(os.path.join(stoat_folder, 
+    # it into a single file
+    id_files = glob.glob(os.path.join(stoat_folder,
         f'indegree_*.{extension}'))
     collection = []
     for file in id_files:
@@ -183,7 +183,7 @@ def generate_anndata(
     validity: pd.Series,
     classes: pd.Series,
     ens_to_name: pd.Series,
-) -> sc.AnnData:    
+) -> sc.AnnData:
     # Create an AnnData object that can be passed for further analysis
     df_f = df.loc[validity]
     df_scaled = df_f.subtract(df_f.mean(axis=0), axis=1).divide(
@@ -203,10 +203,10 @@ def perform_gsea(
     anndata: sc.AnnData,
     gene_set: str,
     **kwargs,
-) -> dict: 
+) -> dict:
     # Perform GSEA for every identified cluster in the anndata object
     # Compares to all other clusters
-    # Assumes clusters are present at obs['clusters'], data is log1p 
+    # Assumes clusters are present at obs['clusters'], data is log1p
     # transformed and gene names are used instead of Ensembl IDs
     # kwargs are passed to the gsea function
     for i in range(anndata.obs['clusters'].nunique()):
@@ -217,7 +217,7 @@ def perform_gsea(
         in_cluster.sort_values(ascending=False, inplace=True)
         res_all[i] = gp.gsea(
             # row -> genes, column -> samples
-            data=anndata.to_df().reindex(in_cluster.index).T, 
+            data=anndata.to_df().reindex(in_cluster.index).T,
             gene_sets=gene_set,
             cls=in_cluster,
             **kwargs,
@@ -231,9 +231,9 @@ def perform_deg_analysis(
 ) -> sc.AnnData:
     # Perform DEG for every identified cluster in the anndata object
     # Compares to all other clusters
-    # Assumes clusters are present at obs['clusters'], data is log1p 
+    # Assumes clusters are present at obs['clusters'], data is log1p
     # transformed and gene names are used instead of Ensembl IDs
-    deg_adata = sc.tl.rank_genes_groups(anndata, groupby='clusters', 
+    deg_adata = sc.tl.rank_genes_groups(anndata, groupby='clusters',
         method='wilcoxon', tie_correct=True, copy=True)
-    
+
     return deg_adata

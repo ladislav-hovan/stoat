@@ -12,7 +12,7 @@ from typing import Iterable, List, Optional, Tuple, Union
 
 from stoat.config import *
 from stoat.modules.plotting import *
-from stoat.modules.utils import get_distance_weights, get_correlation_weights
+from stoat.modules.utils import get_correlation_weights, get_distance_weights
 
 ### Class definition ###
 class Stoat:
@@ -71,7 +71,7 @@ class Stoat:
 
 
     def check_input(
-        self
+        self,
     ) -> None:
         """
         _summary_
@@ -96,10 +96,10 @@ class Stoat:
 
     ### Dataset loading ###
     def load_expression_raw(
-        self, 
+        self,
         matrix_path: str,
         barcodes_path: str,
-        features_path: str
+        features_path: str,
     ) -> None:
         """
         _summary_
@@ -115,19 +115,19 @@ class Stoat:
         """
 
         # Load raw count matrix first
-        df = pd.read_csv(matrix_path, names=['Feature ID', 'Barcode ID', 
+        df = pd.read_csv(matrix_path, names=['Feature ID', 'Barcode ID',
             'Count'], comment='%', sep=' ')
-        df.drop(0, inplace=True)  # First row contains total numbers of 
+        df.drop(0, inplace=True)  # First row contains total numbers of
                                   # features/barcodes/matrix points
         df['Feature ID'] = df['Feature ID'].astype(int)
         df['Barcode ID'] = df['Barcode ID'].astype(int)
-        df2 = df.pivot(values='Count', index='Barcode ID', 
+        df2 = df.pivot(values='Count', index='Barcode ID',
             columns='Feature ID')  # Convert to matrix format
-        
+
         # Load barcodes for index and feature names for columns
         barcodes = np.loadtxt(barcodes_path, dtype=str, delimiter='\t')
         # Shift because barcodes are 1-indexed
-        bar_dict = {ind+1: val for ind,val in enumerate(barcodes)}  
+        bar_dict = {ind+1: val for ind,val in enumerate(barcodes)}
         df2.index = [bar_dict[i] for i in df2.index]
         # Fill in possible missing barcodes with NaNs
         df2 = df2.reindex(index=barcodes)
@@ -139,23 +139,23 @@ class Stoat:
 
         self.expression = df2
         self.avg_expression = df2.copy()
-        self.features = pd.DataFrame(features, 
+        self.features = pd.DataFrame(features,
             columns=['Ensembl', 'Name', 'Type'])
 
-        if ((self.spatial is not None) and 
+        if ((self.spatial is not None) and
             (len(self.expression) != len(self.spatial))):
-            print ('The lengths of the spatial and expression data do not ' + 
+            print ('The lengths of the spatial and expression data do not ' +
                 'match, this may cause problems')
 
 
     def load_expression(
-        self, 
+        self,
         expression_path: Union[str, pd.DataFrame],
         sep: str = '\t',
         index_col: int = 0,
     ) -> None:
-        
-        
+
+
         if type(expression_path) == str:
             # Load the DataFrame
             self.expression = pd.read_csv(expression_path, sep=sep,
@@ -166,9 +166,9 @@ class Stoat:
             self.expression = expression_path
             self.avg_expression = expression_path.copy()
 
-        if self.spatial is not None and (len(self.expression) != 
+        if self.spatial is not None and (len(self.expression) !=
             len(self.spatial)):
-            print ('The lengths of the spatial and expression data do not ' + 
+            print ('The lengths of the spatial and expression data do not ' +
                 'match, this may cause problems')
 
 
@@ -177,7 +177,7 @@ class Stoat:
         spatial_path: str,
         data_type = 'visium',
     ) -> None:
-        
+
         if data_type == 'visium':
             self.load_spatial_visium(spatial_path)
         elif data_type == 'visium_hd':
@@ -203,7 +203,7 @@ class Stoat:
         # Check if there is a header
         f = open(spatial_path, 'r')
         first_line = f.readline()
-        # If there is not a header, the last character on the first line 
+        # If there is not a header, the last character on the first line
         # should be a digit (part of pixel position in full resolution image)
         # The last character is newline, so second last is what counts
         if first_line[-2].isdigit():
@@ -211,7 +211,7 @@ class Stoat:
         else:
             header_row = 0
         # Load spatial data
-        coords = pd.read_csv(spatial_path, index_col=0, names=['isTissue', 
+        coords = pd.read_csv(spatial_path, index_col=0, names=['isTissue',
             'xInd', 'yInd', 'xPos', 'yPos'], header=header_row)
         # Adjust typing
         coords['isTissue'] = coords['isTissue'].astype(bool)
@@ -226,9 +226,9 @@ class Stoat:
 
         self.spatial = coords
 
-        if self.expression is not None and (len(self.expression) != 
+        if self.expression is not None and (len(self.expression) !=
             len(self.spatial)):
-            print ('The lengths of the spatial and expression data do not ' + 
+            print ('The lengths of the spatial and expression data do not ' +
                 'match, this may cause problems')
 
 
@@ -236,14 +236,14 @@ class Stoat:
         self,
         spatial_path: str,
     ) -> None:
-        
+
         coords = pd.read_parquet(spatial_path)
-        
+
         self.spatial = coords
 
-        if self.expression is not None and (len(self.expression) != 
+        if self.expression is not None and (len(self.expression) !=
             len(self.spatial)):
-            print ('The lengths of the spatial and expression data do not ' + 
+            print ('The lengths of the spatial and expression data do not ' +
                 'match, this may cause problems')
 
 
@@ -252,7 +252,7 @@ class Stoat:
         self,
         method: str = 'fill_zero',
         random_seed: Optional[int] = None,
-        st_dev: float = 1e-6
+        st_dev: float = 1e-6,
     ) -> None:
 
 
@@ -269,18 +269,18 @@ class Stoat:
             # Update the expression values (only the NaNs)
             self.expression.update(fill_df, overwrite=False)
         else:
-            raise NotImplementedError('Unrecognised NaN removal method: ' + 
+            raise NotImplementedError('Unrecognised NaN removal method: ' +
                 f'{method}\nOptions are: fill_zero, fill_random')
         # Replace the average expression after this function has been called
         self.avg_expression = self.expression.copy()
 
 
     def drop_deprecated(
-        self
+        self,
     ) -> None:
-        
 
-        deprecated = [i for i in self.expression.columns if 
+
+        deprecated = [i for i in self.expression.columns if
             i[:11] == 'DEPRECATED_']
         if len(deprecated) > 0:
             print (f'Dropping {len(deprecated)} deprecated columns')
@@ -295,16 +295,16 @@ class Stoat:
         drop_non_protein_coding: bool = True,
         min_spots_expressing: Optional[int] = None,
     ) -> None:
-        
+
 
         if drop_non_protein_coding:
             server = BiomartServer(ENSEMBL_URL)
             ensembl = server.datasets['hsapiens_gene_ensembl']
             to_retrieve = ['ensembl_gene_id', 'gene_biotype']
             response = ensembl.search({'attributes': to_retrieve})
-            ens_to_type = pd.read_csv(BytesIO(response.content), sep='\t', 
+            ens_to_type = pd.read_csv(BytesIO(response.content), sep='\t',
                 names=to_retrieve).set_index('ensembl_gene_id')
-            to_drop = [i for i in self.expression.columns 
+            to_drop = [i for i in self.expression.columns
                 if i not in ens_to_type.index
                 or ens_to_type.loc[i]['gene_biotype'] != 'protein_coding']
             print (f'Will drop {len(to_drop)} non-protein coding genes')
@@ -341,14 +341,14 @@ class Stoat:
                 names=['source', 'target', 'weight'])
             prior_genes = set(motif_df['target'])
         else:
-            raise RuntimeError('There is no way to obtain gene names in the ' + 
+            raise RuntimeError('There is no way to obtain gene names in the ' +
                 'motif prior, provide a path to the prior during object ' +
                 'creation')
 
         if self.expression is not None:
             expr_genes = set(self.expression.columns)
         else:
-            raise RuntimeError('There is no way to obtain gene names in the ' + 
+            raise RuntimeError('There is no way to obtain gene names in the ' +
                 'expression data, load it from a saved frame or raw counts ' +
                 'or provide a PANDA object during object creation')
 
@@ -383,7 +383,7 @@ class Stoat:
         print ('Genes considered as MT genes:', mt_columns)
         to_keep = (self.expression[mt_columns].sum(axis=1) /
             self.expression.sum(axis=1)) <= mt_pct_threshold
-        
+
         if min_mrna_counts is not None:
             mrna_counts = self.expression.sum(axis=1, skipna=True)
             to_keep = to_keep & (mrna_counts >= min_mrna_counts)
@@ -397,9 +397,9 @@ class Stoat:
 
 
     def normalise_library_size(
-        self
+        self,
     ) -> None:
-        
+
 
         size_factors = self.expression.sum(axis=1)
         size_factors /= size_factors.mean()
@@ -415,7 +415,7 @@ class Stoat:
         max_invalid: int = 0,
         edges_invalid: bool = True,
     ) -> None:
-        
+
 
         if self.spatial is None:
             raise RuntimeError('The neighbour determination requires spatial '
@@ -424,15 +424,15 @@ class Stoat:
         if distance is None:
             # Use the nearest neighbours for averaging, defined using the
             # scaled coordinates
-            self.spatial['Neighbours'] = self.spatial.apply(lambda row: 
-                self.spatial[((self.spatial['xIndSc'] - row['xIndSc'])**2 + 
-                (self.spatial['yIndSc'] - row['yIndSc'])**2)**0.5 < 
+            self.spatial['Neighbours'] = self.spatial.apply(lambda row:
+                self.spatial[((self.spatial['xIndSc'] - row['xIndSc'])**2 +
+                (self.spatial['yIndSc'] - row['yIndSc'])**2)**0.5 <
                 neighbours + 0.5].index, axis=1)
         else:
             # Use the actual distance to define neighbours
-            self.spatial['Neighbours'] = self.spatial.apply(lambda row: 
-                self.spatial[((self.spatial['xPos'] - row['xPos'])**2 + 
-                (self.spatial['yPos'] - row['yPos'])**2)**0.5 < 
+            self.spatial['Neighbours'] = self.spatial.apply(lambda row:
+                self.spatial[((self.spatial['xPos'] - row['xPos'])**2 +
+                (self.spatial['yPos'] - row['yPos'])**2)**0.5 <
                 distance].index, axis=1)
 
         # Count the number of neighbours: total and (in)valid
@@ -457,7 +457,7 @@ class Stoat:
                 max_neigh = 1
                 for layer in range(1, neighbours + 1):
                     max_neigh += 6 * layer
-            self.spatial['Valid'] = self.spatial['Valid'] & (max_neigh == 
+            self.spatial['Valid'] = self.spatial['Valid'] & (max_neigh ==
                 self.spatial['NumNeigh'])
 
 
@@ -473,7 +473,7 @@ class Stoat:
         weigh_by_correlation: bool = False,
     ) -> None:
 
-        
+
         # Determine neighbours for every spot if required (not done previously)
         if determine_neighbours:
             self.determine_neighbours(neighbours, distance, max_invalid,
@@ -483,7 +483,7 @@ class Stoat:
             lambda x: np.ones_like(x, dtype=float))
         neigh_weights *= get_distance_weights(self.spatial, kernel, sigma)
         if weigh_by_correlation:
-            neigh_weights *= get_correlation_weights(self.spatial, 
+            neigh_weights *= get_correlation_weights(self.spatial,
                 self.expression)
 
         nw_sum = neigh_weights.apply(np.sum)
@@ -502,10 +502,10 @@ class Stoat:
         colourmap: str = 'Greens',
         label: Optional[str] = None,
         title: Optional[str] = None,
-        hide_overflow: bool = True
+        hide_overflow: bool = True,
     ) -> Tuple[plt.Figure, plt.Axes]:
         """
-        Plots the map of spots for the spatial expression data. It can 
+        Plots the map of spots for the spatial expression data. It can
         colour the spots based on an additional supplied gene name.
 
         Parameters
@@ -514,12 +514,12 @@ class Stoat:
             Whether to use the averaged expression data instead of
             the original, by default False
         colour_from : Union[str, Callable], optional
-            The name of the gene that the colouring will be based on, 
-            or a function to be applied to every spot (for example sum), 
-            or None to colour all valid cells the same colour, 
+            The name of the gene that the colouring will be based on,
+            or a function to be applied to every spot (for example sum),
+            or None to colour all valid cells the same colour,
             by default None
         colourmap : str, optional
-            The name of the matplotlib colourmap to use, by default 
+            The name of the matplotlib colourmap to use, by default
             'Greens'
         label : str, optional
             The label for the colourbar or None for no label, by default
@@ -527,8 +527,8 @@ class Stoat:
         title : str, optional
             A title for the figure or None for no title, by default None
         hide_overflow : bool, optional
-            Whether to restrict the range to the bottom 99% of values 
-            and colour the top 1% with a different colour, by default 
+            Whether to restrict the range to the bottom 99% of values
+            and colour the top 1% with a different colour, by default
             True
 
         Returns
@@ -546,23 +546,23 @@ class Stoat:
             validity = 'isTissue'
 
         # Call the corresponding plotting function, get new figure and axes
-        return plot_spot_expression(self.spatial, expr_df, validity, 
+        return plot_spot_expression(self.spatial, expr_df, validity,
             colour_from, colourmap, label, title, hide_overflow, ax=None)
 
 
     ### Network calculation ###
     def calculate_panda(
-        self
+        self,
     ) -> None:
         """
         Runs the calculation of the full PANDA network (for all samples)
         using the stored values of motif prior, PPI prior, and averaged
-        gene expression data. Stores the resulting network in 
+        gene expression data. Stores the resulting network in
         self.panda_network.
         """
-        
+
         # Run the PANDA calculation using the provided priors
-        panda_obj = Panda(self.avg_expression.loc[self.spatial['Valid']].T, 
+        panda_obj = Panda(self.avg_expression.loc[self.spatial['Valid']].T,
             self.motif_prior, self.ppi_prior, computing=self.computing)
 
         self.panda_network = panda_obj.panda_network
@@ -571,9 +571,9 @@ class Stoat:
 
     def get_full_name(
         self,
-        base_filename: str
+        base_filename: str,
     ) -> str:
-        
+
 
         return f'{base_filename}.{self.extension}'
 
@@ -581,9 +581,9 @@ class Stoat:
     def save_dataframe(
         self,
         df: Union[pd.DataFrame, pd.Series],
-        base_filename: str
+        base_filename: str,
     ) -> None:
-        
+
 
         if self.extension == 'tsv':
             df.to_csv(f'{base_filename}.tsv', sep='\t')
@@ -604,7 +604,7 @@ class Stoat:
         spot_barcodes: Union[str, Iterable[str], None] = None,
         save_panda: bool = False,
         save_degrees: bool = False,
-        overwrite_old = True
+        overwrite_old = True,
     ) -> None:
 
 
@@ -626,7 +626,7 @@ class Stoat:
             lines = f.readlines()
             barcodes = [i.split('\n')[0] for i in lines]
             f.close()
-        else:  
+        else:
             # An Iterable of barcodes
             barcodes = spot_barcodes
 
@@ -641,10 +641,10 @@ class Stoat:
 
             # Check if we're overwriting
             if not overwrite_old and (
-                os.path.exists(self.get_full_name(stoat_outfile)) or 
-                (save_panda and 
+                os.path.exists(self.get_full_name(stoat_outfile)) or
+                (save_panda and
                 os.path.exists(self.get_full_name(panda_outfile)))):
-                print (f'Skipping spot {bc} because the STOAT or ' 
+                print (f'Skipping spot {bc} because the STOAT or '
                     'PANDA file already exists in the target directory')
                 continue
 
@@ -657,10 +657,10 @@ class Stoat:
             panda_net = panda_obj.panda_network
 
             if save_panda:
-                print ('Saving the intermediate PANDA network to', 
+                print ('Saving the intermediate PANDA network to',
                     self.get_full_name(panda_outfile))
                 self.save_dataframe(panda_net, panda_outfile)
-            
+
             # Equation for deriving the spot-specific network
             stoat_net = n_spots * (self.panda_network - panda_net) + panda_net
 
@@ -675,9 +675,9 @@ class Stoat:
 
                 print ('Saving the indegrees to',
                     self.get_full_name(in_outfile))
-                self.save_dataframe(stoat_net.sum().rename('Indegrees'), 
+                self.save_dataframe(stoat_net.sum().rename('Indegrees'),
                     in_outfile)
                 print ('Saving the outdegrees to',
                     self.get_full_name(out_outfile))
-                self.save_dataframe(stoat_net.sum(axis=1).rename('Outdegrees'), 
+                self.save_dataframe(stoat_net.sum(axis=1).rename('Outdegrees'),
                     out_outfile)

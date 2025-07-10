@@ -6,7 +6,7 @@ from math import exp
 
 ### Functions ###
 def calculate_gaussian(
-    r: float, 
+    r: float,
     sigma: float
 ) -> float:
     """
@@ -26,14 +26,14 @@ def calculate_gaussian(
         The value of the Gaussian PDF at distance r
     """
 
-    # Normalisation is irrelevant because of the finite discretised 
+    # Normalisation is irrelevant because of the finite discretised
     # scope, it will be done based on the sum of contributing parts
-    return exp(-r**2/(2*sigma**2))
+    return exp(-r**2/(2 * sigma**2))
 
 
 def get_distance_to_neighbours(
-    spotname: str, 
-    spatial: pd.DataFrame, 
+    spotname: str,
+    spatial: pd.DataFrame,
 ) -> pd.Series:
     """
     Calculates the distances to the neighbours of the given spot.
@@ -54,9 +54,9 @@ def get_distance_to_neighbours(
     # Take the valid neighbour indices
     neigh_ind = spatial.loc[spotname]['ValNeighbours']
     # Calculate the 2D cartesian distances using scaled X/Y indices
-    distance = ((spatial.loc[neigh_ind]['xIndSc'] - 
+    distance = ((spatial.loc[neigh_ind]['xIndSc'] -
         spatial.loc[spotname]['xIndSc'])**2 +
-        (spatial.loc[neigh_ind]['yIndSc'] - 
+        (spatial.loc[neigh_ind]['yIndSc'] -
         spatial.loc[spotname]['yIndSc'])**2)**0.5
 
     return distance
@@ -67,7 +67,7 @@ def get_distance_weights(
     kernel: str = 'uniform',
     sigma: float = 0.5,
 ) -> pd.DataFrame:
-    
+
     if kernel == 'uniform':
         # The contribution of every cell to the average is independent of
         # the distance from the central cell

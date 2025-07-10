@@ -2,29 +2,18 @@
 # They can be called directly and certain STOAT functions call them
 
 ### Imports and settings ###
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from math import ceil
-
-from typing import Optional, Tuple, Mapping, Union, Callable, Iterable, Any
-from typing import Sequence
-
-import matplotlib.pyplot as plt
-
-from matplotlib.patches import RegularPolygon, Circle
 from matplotlib.colors import Colormap, Normalize
+from matplotlib.patches import Circle, RegularPolygon
 from matplotlib.ticker import MaxNLocator
+from typing import (Any, Callable, Iterable, Mapping, Optional, Sequence,
+    Tuple, Union)
 
-# plt.rcParams['text.usetex'] = True
-
-### Multiplot settings ###
-DIMENSIONS = pd.DataFrame({
-    'type': ['deg', 'gsea'],
-    'overhead': [2.5, 2.5],
-    'width_per_col': [3, 8],
-    'height_per_line': [0.3, 0.5],
-}).set_index('type')
+from stoat.config import DIMENSIONS
 
 ### Functions ###
 def plot_spot_expression(
@@ -39,7 +28,7 @@ def plot_spot_expression(
     ax: Optional[plt.Axes] = None
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
-    Plots the map of spots for the spatial expression data. It can 
+    Plots the map of spots for the spatial expression data. It can
     colour the spots based on an additional supplied gene name.
 
     Indices within the two dataframes should match.
@@ -54,11 +43,11 @@ def plot_spot_expression(
         The column name in the spatial dataframe to be used to determine
         validity, by default 'isTissue'
     colour_from : Union[str, Callable], optional
-        The name of the gene that the colouring will be based on, or a 
-        function to be applied to every spot (for example sum), or None 
+        The name of the gene that the colouring will be based on, or a
+        function to be applied to every spot (for example sum), or None
         to colour all valid cells the same colour, by default None
     colourmap : str, optional
-        The name of the matplotlib colourmap to use, by default 
+        The name of the matplotlib colourmap to use, by default
         'Greens'
     label : str, optional
         The label for the colourbar or None for no label, by default
@@ -69,7 +58,7 @@ def plot_spot_expression(
         Whether to restrict the range to the bottom 99% of values and
         colour the top 1% with a different colour, by default True
     ax : plt.Axes, optional
-        The axes to plot on or None to generate new ones, by default 
+        The axes to plot on or None to generate new ones, by default
         None
 
     Returns
@@ -157,7 +146,7 @@ def plot_spot_classification(
         consistent, None means the number of actual classes will be
         used, by default None
     ax : plt.Axes, optional
-        The axes to plot on or None to generate new ones, by default 
+        The axes to plot on or None to generate new ones, by default
         None
 
     Returns
@@ -206,14 +195,14 @@ def plot_spot_classification(
         for i in range(len(labels)):
             spot_index = sample_points.loc[i, 'index']
             spot_spatial = spatial.loc[spot_index]
-            x,y = convert_coordinates(spot_spatial['xInd'], 
+            x,y = convert_coordinates(spot_spatial['xInd'],
                 spot_spatial['yInd'])
             hex_spot = RegularPolygon((x,y), numVertices=6, radius=2/3,
-                orientation=np.radians(120), facecolor=cmap(norm(i)), 
+                orientation=np.radians(120), facecolor=cmap(norm(i)),
                 edgecolor='gray', label=labels[classes_list[i]])
             ax.add_patch(hex_spot)
         # Create the legend
-        ax.legend(fontsize=16, loc='upper left', bbox_to_anchor=(0, 0), 
+        ax.legend(fontsize=16, loc='upper left', bbox_to_anchor=(0, 0),
             handlelength=0.7)
 
     if ax_create:
@@ -230,7 +219,7 @@ def add_circle(
     fontsize: int = 25
 ) -> None:
     """
-    Creates a circle at coordinates obtained after transformation of 
+    Creates a circle at coordinates obtained after transformation of
     the provided ones.
 
     Parameters
@@ -247,7 +236,7 @@ def add_circle(
     colour : str, optional
         The colour of the circle, by default 'C3'
     label : Optional[str], optional
-        The label inside the circle or None for no label, by default 
+        The label inside the circle or None for no label, by default
         None
     fontsize : float, optional
         The font size for the label, by default 25
@@ -262,7 +251,7 @@ def add_circle(
     ax.add_patch(Circle(coords, radius=radius, color=colour, lw=3, fill=False))
 
     if label is not None:
-        ax.text(*coords, label, color=colour, ha='center', va='center', 
+        ax.text(*coords, label, color=colour, ha='center', va='center',
             size=fontsize)
 
 
@@ -302,7 +291,7 @@ def generate_cmap_and_colours(
     hide_overflow: bool = True
 ) -> Tuple[Colormap, Normalize, pd.Series]:
     """
-    Generates the colourmap, the normalisation function and the 
+    Generates the colourmap, the normalisation function and the
     normalised series of colour values.
 
     Parameters
@@ -335,7 +324,7 @@ def generate_cmap_and_colours(
         vmin_value = min(values)
     if vmax_value is None:
         vmax_value = max(values)
-        
+
     if hide_overflow:
         # Create a colourmap with an overflow value for the top 1%
         cmap.set_over('navy')
@@ -357,7 +346,7 @@ def plot_hexagons(
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots the map of spots for the spatial expression data as hexagons.
-    Validity and colours are based on the provided series. 
+    Validity and colours are based on the provided series.
 
     Indices within the series and the dataframe should match.
 
@@ -375,7 +364,7 @@ def plot_hexagons(
     title : str, optional
         A title for the figure or None for no title, by default None
     ax : plt.Axes, optional
-        The axes to plot on or None to generate new ones, by default 
+        The axes to plot on or None to generate new ones, by default
         None
 
     Returns
@@ -395,8 +384,8 @@ def plot_hexagons(
     ax.set_aspect('equal')
     ax.set_axis_off()
 
-    # Create a DataFrame to ensure the Series align by index 
-    plot_df = pd.DataFrame({'x': hcoord, 'y': vcoord, 'c': colours, 
+    # Create a DataFrame to ensure the Series align by index
+    plot_df = pd.DataFrame({'x': hcoord, 'y': vcoord, 'c': colours,
         'v': validity})
 
     # Add coloured hexagons to the plot
@@ -408,7 +397,7 @@ def plot_hexagons(
         else:
             facecolor = colourmap(c)
         hex_spot = RegularPolygon((x,y), numVertices=6, radius=2/3,
-            orientation=np.radians(120), facecolor=facecolor, 
+            orientation=np.radians(120), facecolor=facecolor,
             edgecolor='gray')
         ax.add_patch(hex_spot)
 
@@ -422,7 +411,7 @@ def plot_hexagons(
 
     if ax_create:
         return fig, ax
-    
+
 
 def distribute_plots(
     p_function: Callable,
@@ -435,13 +424,13 @@ def distribute_plots(
     fig: Optional[plt.Figure] = None,
     p_options: Optional[Sequence[Mapping[Any, Any]]] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    
+
 
     n_rows = ceil(n_plots / n_cols)
 
     if fig is None:
-        fig,ax = plt.subplots(n_rows, n_cols, 
-            figsize=(n_cols * width_per_col, 
+        fig,ax = plt.subplots(n_rows, n_cols,
+            figsize=(n_cols * width_per_col,
                 n_rows * (n_lines + overhead) * height_per_line),
             tight_layout=True)
     else:
@@ -468,11 +457,11 @@ def plot_deg_data_single(
     max_clusters: int = 20,
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
-    
+
 
     dims = DIMENSIONS.loc['deg']
     if ax is None:
-        _,ax = plt.subplots(figsize=(dims['width_per_col'], 
+        _,ax = plt.subplots(figsize=(dims['width_per_col'],
             (dims['overhead'] + n_genes) * dims['height_per_line']))
 
     cm = plt.colormaps[cmap]
@@ -485,11 +474,11 @@ def plot_deg_data_single(
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     # Plot all the bars
-    ax.barh([-i for i in range(n_genes)], 
-        data['scores'][label][:n_genes] - 1, 
+    ax.barh([-i for i in range(n_genes)],
+        data['scores'][label][:n_genes] - 1,
         color=cm(cluster_id / max_clusters), align='center')
     # Add the labels
-    for pos,(n,s) in enumerate(zip(data['names'][label][:n_genes], 
+    for pos,(n,s) in enumerate(zip(data['names'][label][:n_genes],
         data['scores'][label][:n_genes])):
         ax.text(s, -pos, n, ha='left', va='center')
 
@@ -506,7 +495,7 @@ def plot_deg_data(
     max_clusters: int = 20,
     fig: Optional[plt.Figure] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    
+
 
     dims = DIMENSIONS.loc['deg']
     n_plots = len(data['scores'][0])
@@ -543,8 +532,8 @@ def plot_deg_heatmap(
     background_colour: str = 'lightgrey',
     show_every: int = 1,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    
-    
+
+
     df = data.iloc[::-1]
 
     vmin = np.percentile(df, percentile[0])
@@ -557,10 +546,10 @@ def plot_deg_heatmap(
 
     if n_cluster_spots is not None:
         ax.plot([0, n_cluster_spots], [-1,-1], color=cluster_colour, lw=3)
-        ax.plot([n_cluster_spots, len(df.columns)], [-1,-1], 
+        ax.plot([n_cluster_spots, len(df.columns)], [-1,-1],
             color=background_colour, lw=3)
 
-    ax.set_yticks([i+0.5 for i in range(0, len(df), show_every)], 
+    ax.set_yticks([i+0.5 for i in range(0, len(df), show_every)],
         df.index[::show_every])
     ax.yaxis.set_tick_params('major', left=False)
 
@@ -578,7 +567,7 @@ def plot_deg_heatmap(
     ax.set_xticks([])
     for side in ['top', 'right', 'left', 'bottom']:
         ax.spines[side].set_visible(False)
-    
+
     return fig,ax
 
 
@@ -618,7 +607,7 @@ def plot_gsea_dotplot(
         cbar_title = r'$\log_{10} \frac{1}{ ' + colnd[column] + ' }$'
 
     df = df.sort_values(by=colname).tail(n_terms)
-    
+
     if df.columns.isin(['Overlap', 'Tag %']).any():
         ol = df.columns[df.columns.isin(['Overlap', 'Tag %'])]
         temp = df[ol].squeeze(axis=1).str.split('/', expand=True).astype(int)
@@ -626,13 +615,13 @@ def plot_gsea_dotplot(
     else:
         df['Hits_ratio'] = 1.0
 
-    df['area'] = (df['Hits_ratio'] * dot_scale * 
+    df['area'] = (df['Hits_ratio'] * dot_scale *
         plt.rcParams['lines.markersize']).pow(2)
-    
+
     if ax is None:
         _,ax = plt.subplots(figsize=figsize)
     fig = ax.get_figure()
-    
+
     colmap = df[colname].astype(int)
     vmin = np.percentile(colmap, 2)
     vmax = np.percentile(colmap, 98)
@@ -662,7 +651,7 @@ def plot_gsea_dotplot(
         num=3,
         fmt='{x:.2f}',
         color='gray',
-        func=lambda s: (np.sqrt(s) / plt.rcParams['lines.markersize'] / 
+        func=lambda s: (np.sqrt(s) / plt.rcParams['lines.markersize'] /
             dot_scale),
     )
     ax.legend(
@@ -741,7 +730,7 @@ def plot_cluster_matching(
     fig: Optional[plt.Figure] = None,
     legend: bool = True,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    
+
 
     comp = pd.DataFrame([first.rename('first'), second.rename('second')]).T
     matching = comp.groupby('first').value_counts()
@@ -758,11 +747,11 @@ def plot_cluster_matching(
     colours[-1] = 'grey'
 
     if fig is None:
-        fig,ax = plt.subplots(n_rows, n_cols, figsize=(3*n_cols, 3.5*n_rows), 
+        fig,ax = plt.subplots(n_rows, n_cols, figsize=(3*n_cols, 3.5*n_rows),
             tight_layout=True)
     else:
         ax = fig.subplots(n_rows, n_cols)
-        
+
     for i in range(n_clusters_1):
         ax_i = ax[i // n_cols][i % n_cols]
         ax_i.pie(matching.loc[i].values,
@@ -773,10 +762,10 @@ def plot_cluster_matching(
     for i in range(n_clusters_1, n_rows * n_cols):
         ax_i = ax[i // n_cols][i % n_cols]
         ax_i.set_axis_off()
-    
+
     if legend:
         custom_lines = ([plt.Line2D([0], [0], color=cm(i / max_clusters), lw=8)
-            for i in range(n_clusters)] + 
+            for i in range(n_clusters)] +
             [plt.Line2D([0], [0], color='grey', lw=8)])
         fig.legend(custom_lines, [f'Cluster {i}' for i in range(n_clusters)] +
             ['Not in cluster'],
