@@ -12,7 +12,7 @@ from typing import Iterable, List, Optional, Tuple, Union
 
 from stoat.config import *
 from stoat.modules.plotting import *
-from stoat.modules.utils import get_correlation_weights, get_distance_weights
+# from stoat.modules.utils import get_correlation_weights, get_distance_weights
 
 ### Class definition ###
 class Stoat:

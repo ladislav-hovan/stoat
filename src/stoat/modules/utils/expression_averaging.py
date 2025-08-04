@@ -19,12 +19,15 @@
 import numpy as np
 import pandas as pd
 
-from math import exp
+from anndata import AnnData
+from typing import Union
+
+from stoat.config import DISTANCE_KERNEL
 
 ### Functions ###
 def calculate_gaussian(
-    r: float,
-    sigma: float
+    r: Union[float, np.array],
+    sigma: float,
 ) -> float:
     """
     Calculates the value of the Gaussian PDF with standard deviation
@@ -45,51 +48,22 @@ def calculate_gaussian(
 
     # Normalisation is irrelevant because of the finite discretised
     # scope, it will be done based on the sum of contributing parts
-    return exp(-r**2/(2 * sigma**2))
+    return np.exp(-np.power(r, 2)/(2 * sigma**2))
 
 
-def get_distance_to_neighbours(
-    spotname: str,
-    spatial: pd.DataFrame,
-) -> pd.Series:
-    """
-    Calculates the distances to the neighbours of the given spot.
-
-    Parameters
-    ----------
-    spotname : str
-        The name of the spot which is used for indexing
-    spatial : pd.DataFrame
-        The dataframe containing spatial information about the spots
-
-    Returns
-    -------
-    pd.Series
-        The distances to the neighbours of the given spot
-    """
-
-    # Take the valid neighbour indices
-    neigh_ind = spatial.loc[spotname]['ValNeighbours']
-    # Calculate the 2D cartesian distances using scaled X/Y indices
-    distance = ((spatial.loc[neigh_ind]['xIndSc'] -
-        spatial.loc[spotname]['xIndSc'])**2 +
-        (spatial.loc[neigh_ind]['yIndSc'] -
-        spatial.loc[spotname]['yIndSc'])**2)**0.5
-
-    return distance
-
-
-def get_distance_weights(
-    spatial: pd.DataFrame,
-    kernel: str = 'uniform',
+def weigh_by_distance(
+    adata: AnnData,
+    kernel: DISTANCE_KERNEL = 'uniform',
     sigma: float = 0.5,
 ) -> pd.DataFrame:
 
+    is_neigh = adata.obsp['spatial_connectivities'].copy()
+    for i in range(adata.n_obs):
+        is_neigh[i,i] = 1
     if kernel == 'uniform':
         # The contribution of every cell to the average is independent of
         # the distance from the central cell
-        d_weights = spatial['ValNeighbours'].apply(
-            lambda x: np.ones_like(x, dtype=float))
+        d_weights = is_neigh
     elif kernel == 'gaussian':
         # The contribution is based on the distance from the central cell
         # and decreases proportionally to exp(-r**2)
@@ -100,18 +74,18 @@ def get_distance_weights(
             row.name, spatial).apply(calculate_gaussian_fixed).values, axis=1)
     else:
         raise NotImplementedError(f'Unrecognised kernel: {kernel}'
-            '\nOptions are: uniform, gaussian')
+            f'\nOptions are: {", ".join(DISTANCE_KERNEL.__args__)}')
+    # resc_weights = rescale_weights_by_row(d_weights)
 
     return d_weights
 
 
-def get_correlation_weights(
-    spatial: pd.DataFrame,
-    expression: pd.DataFrame,
-) -> pd.DataFrame:
+# def weigh_by_correlation(
+#     adata: AnnData,
+# ) -> pd.DataFrame:
 
-    corr = expression.T.corr()
-    c_weights = spatial.apply(lambda row: corr.loc[row.name][
-        spatial.loc[row.name]['ValNeighbours']].values, axis=1)
+#     corr = expression.T.corr()
+#     c_weights = spatial.apply(lambda row: corr.loc[row.name][
+#         spatial.loc[row.name]['ValNeighbours']].values, axis=1)
 
-    return c_weights
+#     return c_weights
