@@ -37,6 +37,7 @@ from typing import Iterable, List, Optional, Tuple, Union
 from stoat.config import *
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.plotting import *
+from stoat.modules.region_assigner import RegionAssigner
 from stoat.modules.utils import weigh_by_correlation, weigh_by_distance
 
 ### Class definition ###
@@ -84,8 +85,28 @@ class Stoat:
         **kwargs,
     ) -> None:
 
-        smoother = ExpressionSmoother(self.spatial, n_rings)
+        smoother = ExpressionSmoother(self.spatial['table'], n_rings)
         if edges_invalid:
             smoother.filter_edges()
         smoother.enforce_max_invalid(max_invalid)
         smoother.smooth_expression(avg_function, *args, **kwargs)
+
+
+    def assign_regions(
+        self,
+        mapping: Optional[pd.Series] = None,
+    ) -> None:
+
+        assigner = RegionAssigner(self.spatial)
+        assigner.assign_regions(mapping)
+
+
+    def calculate_networks(
+        self,
+        save_dir: Path = './',
+        motif_prior: Optional[Union[Path, pd.DataFrame]] = None,
+        ppi_prior: Optional[Union[Path, pd.DataFrame]] = None,
+        extension: EXTENSION = 'feather',
+    ) -> None:
+
+        pass

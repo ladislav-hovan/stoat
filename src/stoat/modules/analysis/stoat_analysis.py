@@ -22,6 +22,7 @@ from typing import Optional, Literal, Dict, Any
 
 ### Class definition ###
 class StoatAnalysis:
+    ### Initialisation ###
     def __init__(
         self,
         expr_df: pd.DataFrame,
@@ -39,7 +40,7 @@ class StoatAnalysis:
         self.expr_clust = expr_clusters
         self.ind_clust = ind_clusters
 
-
+    ### Class methods ###
     def determine_clusters(
         self,
         on_df: Literal['expr', 'ind', 'both'] = 'both',
@@ -58,6 +59,3 @@ class StoatAnalysis:
             self.classes_ind = classes
             self.ordering_ind = ordering
             self.n_classes_ind = n_classes
-
-
-    

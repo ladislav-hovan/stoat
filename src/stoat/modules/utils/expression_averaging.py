@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from anndata import AnnData
+from scipy.sparse import csr_matrix
 from typing import Union
 
 from stoat.config import DISTANCE_KERNEL
@@ -51,11 +52,23 @@ def calculate_gaussian(
     return np.exp(-np.power(r, 2)/(2 * sigma**2))
 
 
+def rescale_weights_by_row(
+    weights: csr_matrix,
+) -> csr_matrix:
+    
+    weight_sums = weights.sum(axis=1)
+    for pos in range(len(weight_sums)):
+        if weight_sums[pos][0] == 0:
+            weight_sums[pos][0] = 1
+
+    return weights / weight_sums
+
+
 def weigh_by_distance(
     adata: AnnData,
     kernel: DISTANCE_KERNEL = 'uniform',
     sigma: float = 0.5,
-) -> pd.DataFrame:
+) -> csr_matrix:
 
     is_neigh = adata.obsp['spatial_connectivities'].copy()
     for i in range(adata.n_obs):
@@ -75,17 +88,16 @@ def weigh_by_distance(
     else:
         raise NotImplementedError(f'Unrecognised kernel: {kernel}'
             f'\nOptions are: {", ".join(DISTANCE_KERNEL.__args__)}')
-    # resc_weights = rescale_weights_by_row(d_weights)
 
     return d_weights
 
 
-# def weigh_by_correlation(
-#     adata: AnnData,
-# ) -> pd.DataFrame:
+def weigh_by_correlation(
+    adata: AnnData,
+) -> csr_matrix:
 
-#     corr = expression.T.corr()
-#     c_weights = spatial.apply(lambda row: corr.loc[row.name][
-#         spatial.loc[row.name]['ValNeighbours']].values, axis=1)
+    corr = expression.T.corr()
+    c_weights = spatial.apply(lambda row: corr.loc[row.name][
+        spatial.loc[row.name]['ValNeighbours']].values, axis=1)
 
-#     return c_weights
+    return c_weights
