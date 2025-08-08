@@ -19,6 +19,7 @@
 import squidpy as sq
 
 from anndata import AnnData
+from scipy.sparse import eye
 from typing import Callable
 
 from stoat.modules.utils import rescale_weights_by_row, weigh_by_distance
@@ -35,6 +36,12 @@ class ExpressionSmoother:
         self.st = spatial_table
         sq.gr.spatial_neighbors(self.st, n_rings=n_rings)
         self.st.obs['valid'] = self.st.obs['in_tissue']
+        # A definition of neighbour that includes self
+        self.st.obsp['spatial_neighbours'] = (
+            self.st.obsp['spatial_connectivities'] +
+            eye(self.st.n_obs, format='csr')
+        )
+
 
     ### Class methods ###
     def filter_edges(
@@ -69,7 +76,9 @@ class ExpressionSmoother:
     ) -> None:
 
         self.st.layers['averaged'] = rescale_weights_by_row(
-            avg_function(self.st, *args, **kwargs).multiply(
+            self.st.obsp['spatial_neighbours'].multiply(
+                avg_function(self.st, *args, **kwargs)
+            ).multiply(
                 self.st.obs['in_tissue']
             )
-        ) * self.st.X
+        ) @ self.st.X

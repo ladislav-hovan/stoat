@@ -38,7 +38,7 @@ from stoat.config import *
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.plotting import *
 from stoat.modules.region_assigner import RegionAssigner
-from stoat.modules.utils import weigh_by_correlation, weigh_by_distance
+from stoat.modules.utils import weigh_by_distance
 
 ### Class definition ###
 class Stoat:

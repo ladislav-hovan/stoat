@@ -18,7 +18,7 @@
 ### Imports and settings ###
 import pandas as pd
 
-from spatialdata import SpatialData
+from anndata import AnnData
 from typing import Optional
 
 ### Class definition ###
@@ -26,15 +26,18 @@ class RegionAssigner:
     ### Initialisation ###
     def __init__(
         self,
-        spatial: SpatialData
+        spatial_table: AnnData,
     ):
 
-        pass
+        self.st = spatial_table
 
     ### Class methods ###
     def assign_regions(
         self,
-        mapping: Optional[pd.Series],
+        mapping: Optional[pd.Series] = None,
     ) -> None:
 
-        pass
+        if mapping is not None:
+            self.st['region'] = mapping
+        else:
+            self.st['region'] = self.st.index

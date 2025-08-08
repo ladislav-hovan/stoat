@@ -17,22 +17,22 @@
 
 ### Imports ###
 import numpy as np
-import pandas as pd
 
 from anndata import AnnData
 from scipy.sparse import csr_matrix
-from typing import Union
 
 from stoat.config import DISTANCE_KERNEL
 
 ### Functions ###
-def calculate_gaussian(
-    r: Union[float, np.array],
+def calculate_gaussian_m1(
+    A: csr_matrix,
     sigma: float,
-) -> float:
+) -> csr_matrix:
+    # TODO: Update description
     """
     Calculates the value of the Gaussian PDF with standard deviation
-    sigma at distance r from the mean.
+    sigma at distance r from the mean, minus 1 (so that it works
+    easily with a sparse matrix).
 
     Parameters
     ----------
@@ -44,12 +44,32 @@ def calculate_gaussian(
     Returns
     -------
     float
-        The value of the Gaussian PDF at distance r
+        The value of the Gaussian PDF at distance r, -1
     """
 
     # Normalisation is irrelevant because of the finite discretised
     # scope, it will be done based on the sum of contributing parts
-    return np.exp(-np.power(r, 2)/(2 * sigma**2))
+    return A.power(2).multiply(-1 / (2 * sigma**2)).expm1()
+
+
+def calculate_pearson_r(
+    A: csr_matrix,
+) -> np.ndarray:
+
+    A = A.astype(np.float64)
+    n = A.shape[1]
+
+    # Compute the covariance matrix
+    rowsum = A.sum(1)
+    centering = rowsum.dot(rowsum.T.conjugate()) / n
+    C = (A.dot(A.T.conjugate()) - centering) / (n - 1)
+
+    # The correlation coefficients are given by
+    # C_{i,j} / sqrt(C_{i} * C_{j})
+    d = np.diag(C)
+    coeffs = C / np.sqrt(np.outer(d, d))
+
+    return coeffs.A
 
 
 def rescale_weights_by_row(
@@ -70,9 +90,7 @@ def weigh_by_distance(
     sigma: float = 0.5,
 ) -> csr_matrix:
 
-    is_neigh = adata.obsp['spatial_connectivities'].copy()
-    for i in range(adata.n_obs):
-        is_neigh[i,i] = 1
+    is_neigh = adata.obsp['spatial_neighbours']
     if kernel == 'uniform':
         # The contribution of every cell to the average is independent of
         # the distance from the central cell
@@ -80,11 +98,11 @@ def weigh_by_distance(
     elif kernel == 'gaussian':
         # The contribution is based on the distance from the central cell
         # and decreases proportionally to exp(-r**2)
-        # Define a gaussian distribution with a provided sigma
-        calculate_gaussian_fixed = lambda r: calculate_gaussian(r, sigma)
-        # Provide the function as an input to distance weighting template
-        d_weights = spatial.apply(lambda row: get_distance_to_neighbours(
-            row.name, spatial).apply(calculate_gaussian_fixed).values, axis=1)
+        dists = adata.obsp['spatial_distances'].copy()
+        for i in range(adata.n_obs):
+            dists[i,i] = 0
+        # Add the 1 again from is_neigh (doesn't affect sparse zeroes)
+        d_weights = calculate_gaussian_m1(dists, sigma) + is_neigh
     else:
         raise NotImplementedError(f'Unrecognised kernel: {kernel}'
             f'\nOptions are: {", ".join(DISTANCE_KERNEL.__args__)}')
@@ -94,10 +112,8 @@ def weigh_by_distance(
 
 def weigh_by_correlation(
     adata: AnnData,
-) -> csr_matrix:
+) -> np.ndarray:
 
-    corr = expression.T.corr()
-    c_weights = spatial.apply(lambda row: corr.loc[row.name][
-        spatial.loc[row.name]['ValNeighbours']].values, axis=1)
+    c_weights = calculate_pearson_r(adata.X)
 
     return c_weights
