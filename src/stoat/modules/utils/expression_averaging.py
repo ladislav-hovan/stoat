@@ -28,23 +28,22 @@ def calculate_gaussian_m1(
     A: csr_matrix,
     sigma: float,
 ) -> csr_matrix:
-    # TODO: Update description
     """
     Calculates the value of the Gaussian PDF with standard deviation
-    sigma at distance r from the mean, minus 1 (so that it works
+    sigma at given distances from the mean, minus one (so that it works
     easily with a sparse matrix).
 
     Parameters
     ----------
-    r : float
-        The distance from the mean
+    A : csr_matrix
+        Matrix containing distances from the mean
     sigma : float
-        The standard deviation of the Gaussian distribution
+        Standard deviation of the Gaussian distribution
 
     Returns
     -------
-    float
-        The value of the Gaussian PDF at distance r, -1
+    csr_matrix
+        Values of the Gaussian PDF at given distances minus one
     """
 
     # Normalisation is irrelevant because of the finite discretised
@@ -75,8 +74,23 @@ def calculate_pearson_r(
 def rescale_weights_by_row(
     weights: csr_matrix,
 ) -> csr_matrix:
-    
+    """
+    Rescales the weights in the matrix so that every row sums to one.
+    Rows which sum to zero will not be changed.
+
+    Parameters
+    ----------
+    weights : csr_matrix
+        Matrix of the weights
+
+    Returns
+    -------
+    csr_matrix
+        Rescaled matrix
+    """
+
     weight_sums = weights.sum(axis=1)
+    # Guard against zero division
     for pos in range(len(weight_sums)):
         if weight_sums[pos][0] == 0:
             weight_sums[pos][0] = 1
@@ -114,6 +128,15 @@ def weigh_by_correlation(
     adata: AnnData,
 ) -> np.ndarray:
 
-    c_weights = calculate_pearson_r(adata.X)
+    return calculate_pearson_r(adata.X)
 
-    return c_weights
+
+def weigh_by_distance_and_correlation(
+    adata: AnnData,
+    kernel: DISTANCE_KERNEL = 'uniform',
+    sigma: float = 0.5,
+) -> csr_matrix:
+
+    return weigh_by_distance(adata=adata, kernel=kernel, sigma=sigma).multiply(
+        weigh_by_correlation(adata=adata)
+    )

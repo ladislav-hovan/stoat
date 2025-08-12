@@ -81,4 +81,5 @@ class ExpressionSmoother:
             ).multiply(
                 self.st.obs['in_tissue']
             )
+        # Specify matrix multiplication
         ) @ self.st.X

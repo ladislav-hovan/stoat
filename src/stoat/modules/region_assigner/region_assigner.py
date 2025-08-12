@@ -38,6 +38,6 @@ class RegionAssigner:
     ) -> None:
 
         if mapping is not None:
-            self.st['region'] = mapping
+            self.st.obs['region'] = mapping
         else:
-            self.st['region'] = self.st.index
+            self.st.obs['region'] = self.st.obs.index
