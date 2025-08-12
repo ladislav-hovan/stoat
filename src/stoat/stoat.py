@@ -132,6 +132,12 @@ class Stoat:
         ppi_prior: Optional[Union[Path, pd.DataFrame]] = None,
         log1p_transform: bool = True,
         extension: EXTENSION = 'feather',
+        regions: Union[Path, Iterable[str], None] = None,
+        save_panda: bool = False,
+        save_degrees: bool = False,
+        overwrite_old = True,
+        *args,
+        **kwargs,
     ) -> None:
 
         calculator = NetworkCalculator(
@@ -142,5 +148,14 @@ class Stoat:
         calculator.ensure_compatibility()
         if log1p_transform:
             calculator.log1p_transform()
-        calculator.calculate_panda()
-        calculator.calculate(save_dir=save_dir, extension=extension)
+        calculator.calculate_panda(*args, **kwargs)
+        calculator.calculate(
+            save_dir=save_dir,
+            extension=extension,
+            regions=regions,
+            save_panda=save_panda,
+            save_degrees=save_degrees,
+            overwrite_old=overwrite_old,
+            *args,
+            **kwargs,
+        )
