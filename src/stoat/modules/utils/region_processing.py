@@ -16,19 +16,38 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports and settings ###
+import pandas as pd
+
 from anndata import AnnData
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
 ### Functions ###
+def create_sparse_dataframe(
+    adata: AnnData,
+    layer: Optional[str] = None,
+) -> pd.DataFrame:
+
+    if layer is None:
+        data = adata.X
+    else:
+        data = adata.layers[layer]
+
+    return pd.DataFrame.sparse.from_spmatrix(
+        data,
+        index=adata.obs_names,
+        columns=adata.var_names,
+    )
+
+
 def process_regions(
-    spatial_table: AnnData,
+    expr_data: pd.DataFrame,
     regions: Union[Path, List[str], None] = None,
 ) -> List[str]:
 
     if regions is None:
         # Calculate a STOAT network for every region with valid spots
-        regions = spatial_table.obs[spatial_table.obs['valid']].index
+        regions = expr_data.columns
     elif type(regions) == list:
         # Keep as is
         pass

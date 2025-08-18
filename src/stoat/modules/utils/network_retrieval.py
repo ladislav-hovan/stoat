@@ -18,27 +18,12 @@
 ### Imports and settings ###
 import pandas as pd
 
-from typing import Union
-
-from stoat.config import EXTENSION
-
 ### Functions ###
-def save_dataframe(
-    df: Union[pd.DataFrame, pd.Series],
-    base_filename: str,
-    extension: EXTENSION,
-) -> None:
+def get_network(
+    grn_obj: type,
+) -> pd.DataFrame:
 
-    if extension == 'tsv':
-        df.to_csv(f'{base_filename}.tsv', sep='\t')
-    elif extension == 'feather':
-        # Resetting the index will convert to DataFrame
-        df.reset_index().to_feather(f'{base_filename}.feather')
-    elif extension == 'parquet':
-        if type(df) == pd.DataFrame:
-            df.to_parquet(f'{base_filename}.parquet')
-        else:
-            df.to_frame().to_parquet(f'{base_filename}.parquet')
-    else:
-        raise NotImplementedError(f'Cannot save extension {extension}, '
-            'not implemented')
+    class_name = type(grn_obj).__name__.lower()
+    network = getattr(grn_obj, f'{class_name}_network')
+
+    return network

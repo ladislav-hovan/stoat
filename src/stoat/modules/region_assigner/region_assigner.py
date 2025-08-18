@@ -21,6 +21,8 @@ import pandas as pd
 from anndata import AnnData
 from typing import Optional
 
+from stoat.modules.utils import create_sparse_dataframe
+
 ### Class definition ###
 class RegionAssigner:
     ### Initialisation ###
@@ -38,6 +40,31 @@ class RegionAssigner:
     ) -> None:
 
         if mapping is not None:
+            # Assignment of spots to regions
             self.st.obs['region'] = mapping
         else:
+            # Every spot is its own region
             self.st.obs['region'] = self.st.obs.index
+
+
+    def collapse_expression(
+        self,
+    ) -> None:
+
+        if 'averaged' in self.st.layers:
+            expr_df = create_sparse_dataframe(self.st, layer='averaged')
+        else:
+            expr_df = create_sparse_dataframe(self.st)
+
+        if 'valid' in self.st.obs.columns:
+            valid = self.st.obs['valid']
+        else:
+            valid = self.st.obs['in_tissue']
+
+        region_to_spot = pd.get_dummies(
+            self.st.obs['region'],
+            sparse=True,
+            dtype=int,
+        ).T
+        sum_df = (region_to_spot * valid.astype(int)) @ expr_df
+        self.st.varm['collapsed'] = sum_df.T
