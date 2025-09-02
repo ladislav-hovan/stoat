@@ -20,7 +20,7 @@ import squidpy as sq
 
 from anndata import AnnData
 from scipy.sparse import eye
-from typing import Callable
+from typing import Callable, Optional
 
 from stoat.modules.utils import rescale_weights_by_row, weigh_by_distance
 
@@ -32,10 +32,16 @@ class ExpressionSmoother:
         spatial_table: AnnData,
         n_rings: int = 1,
         n_neighs: int = 6,
+        coord_type: Optional[str] = None,
     ):
 
         self.st = spatial_table
-        sq.gr.spatial_neighbors(self.st, n_rings=n_rings, n_neighs=n_neighs)
+        sq.gr.spatial_neighbors(
+            self.st,
+            n_rings=n_rings,
+            n_neighs=n_neighs,
+            coord_type=coord_type,
+        )
         self.st.obs['valid'] = self.st.obs['in_tissue']
         # A definition of neighbour that includes self
         self.st.obsp['spatial_neighbours'] = (

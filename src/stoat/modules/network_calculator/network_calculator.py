@@ -22,7 +22,7 @@ import pandas as pd
 
 from anndata import AnnData
 from netZooPy.panda import Panda
-from numpy import log1p
+from numpy import log, log1p
 from pathlib import Path
 from typing import Iterable, Optional, Union
 
@@ -81,14 +81,18 @@ class NetworkCalculator:
     def log1p_transform(
         self,
     ) -> None:
+        # Converted to base 2
 
         if 'collapsed' in self.st.varm:
-            self.st.varm['collapsed_log1p'] = log1p(self.st.varm['collapsed'])
+            self.st.varm['collapsed_log1p'] = log1p(
+                self.st.varm['collapsed']
+            ) / log(2)
         elif 'averaged' in self.st.layers:
             self.st.layers['averaged_log1p'] = log1p(
-                self.st.layers['averaged'])
+                self.st.layers['averaged']
+            ) / log(2)
         else:
-            self.st.layers['log1p'] = log1p(self.st.X)
+            self.st.layers['log1p'] = log1p(self.st.X) / log(2)
 
 
     def calculate_basis(
@@ -106,10 +110,16 @@ class NetworkCalculator:
                 self.expr_data = self.st.varm[layer]
                 break
             elif layer in self.st.layers:
+                # TODO: This selection is done for grouping too
+                # Maybe unify it somehow to simplify
+                if 'valid' in self.st.obs.columns:
+                    valid = self.st.obs['valid']
+                else:
+                    valid = self.st.obs['in_tissue']
                 self.expr_data = create_sparse_dataframe(
                     self.st,
                     layer=layer,
-                ).T
+                ).loc[valid].T
                 break
 
         grn_obj = self.generator(

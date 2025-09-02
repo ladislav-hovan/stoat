@@ -43,6 +43,7 @@ class Stoat:
         # SpatialData object to be managed by the class
         self._spatial = None
         self.table = None
+        self.coord_type = None
 
     ### Properties ###
     @property
@@ -77,6 +78,7 @@ class Stoat:
 
         self.spatial = visium(*args, **kwargs)
         self.table = 'table'
+        self.coord_type = 'grid'
         self.n_neighs = 6
 
 
@@ -91,6 +93,7 @@ class Stoat:
         self.table = max(self.spatial.tables.keys())
         if len(self.spatial.tables) > 1:
             print (f'Multiple tables were detected, using {self.table}.')
+        self.coord_type = 'grid'
         self.n_neighs = 4
 
 
@@ -161,6 +164,7 @@ class Stoat:
             spatial_table=self.spatial[self.table],
             n_rings=n_rings,
             n_neighs=self.n_neighs,
+            coord_type=self.coord_type,
         )
         if edges_invalid:
             smoother.filter_edges()
