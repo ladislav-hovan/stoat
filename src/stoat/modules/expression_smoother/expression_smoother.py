@@ -31,10 +31,11 @@ class ExpressionSmoother:
         self,
         spatial_table: AnnData,
         n_rings: int = 1,
+        n_neighs: int = 6,
     ):
 
         self.st = spatial_table
-        sq.gr.spatial_neighbors(self.st, n_rings=n_rings)
+        sq.gr.spatial_neighbors(self.st, n_rings=n_rings, n_neighs=n_neighs)
         self.st.obs['valid'] = self.st.obs['in_tissue']
         # A definition of neighbour that includes self
         self.st.obsp['spatial_neighbours'] = (

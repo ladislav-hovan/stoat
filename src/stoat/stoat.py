@@ -42,6 +42,7 @@ class Stoat:
 
         # SpatialData object to be managed by the class
         self._spatial = None
+        self.table = None
 
     ### Properties ###
     @property
@@ -75,6 +76,8 @@ class Stoat:
     ) -> None:
 
         self.spatial = visium(*args, **kwargs)
+        self.table = 'table'
+        self.n_neighs = 6
 
 
     @wraps(visium_hd)
@@ -85,6 +88,10 @@ class Stoat:
     ) -> None:
 
         self.spatial = visium_hd(*args, **kwargs)
+        self.table = max(self.spatial.tables.keys())
+        if len(self.spatial.tables) > 1:
+            print (f'Multiple tables were detected, using {self.table}.')
+        self.n_neighs = 4
 
 
     @wraps(filter_genes)
@@ -96,16 +103,16 @@ class Stoat:
     ) -> None:
 
         if drop_deprecated:
-            deprecated = self.spatial['table'].var_names.str.startswith(
+            deprecated = self.spatial[self.table].var_names.str.startswith(
                 'DEPRECATED_')
             if sum(deprecated) > 0:
                 print (f'Dropping {sum(deprecated)} deprecated genes.')
-                self.spatial['table']._inplace_subset_var(~deprecated)
+                self.spatial[self.table]._inplace_subset_var(~deprecated)
             else:
                 print ('No deprecated genes found.')
 
         if args or kwargs:
-            filter_genes(data=self.spatial['table'], *args, **kwargs)
+            filter_genes(data=self.spatial[self.table], *args, **kwargs)
 
 
     @wraps(filter_cells)
@@ -117,14 +124,14 @@ class Stoat:
     ) -> None:
 
         if mt_pct_threshold is not None:
-            st = self.spatial['table']
+            st = self.spatial[self.table]
             st.var['mt'] = st.var_names.str.startswith('MT-')
             calculate_qc_metrics(st, qc_vars=['mt'], inplace=True, log1p=False)
             filter = st.obs['pct_counts_mt'] <= mt_pct_threshold
-            self.spatial['table']._inplace_subset_obs(filter)
+            self.spatial[self.table]._inplace_subset_obs(filter)
 
         if args or kwargs:
-            filter_cells(data=self.spatial['table'], *args, **kwargs)
+            filter_cells(data=self.spatial[self.table], *args, **kwargs)
 
 
     @wraps(normalize_total)
@@ -134,7 +141,7 @@ class Stoat:
         **kwargs,
     ) -> None:
 
-        normalize_total(adata=self.spatial['table'], *args, **kwargs)
+        normalize_total(adata=self.spatial[self.table], *args, **kwargs)
 
 
     # TODO: Implement plotting functions (fast via SpatialData)
@@ -151,8 +158,9 @@ class Stoat:
     ) -> None:
 
         smoother = ExpressionSmoother(
-            spatial_table=self.spatial['table'],
+            spatial_table=self.spatial[self.table],
             n_rings=n_rings,
+            n_neighs=self.n_neighs,
         )
         if edges_invalid:
             smoother.filter_edges()
@@ -165,7 +173,7 @@ class Stoat:
         mapping: Optional[pd.Series] = None,
     ) -> None:
 
-        assigner = RegionAssigner(spatial_table=self.spatial['table'])
+        assigner = RegionAssigner(spatial_table=self.spatial[self.table])
         assigner.assign_regions(mapping=mapping)
         assigner.collapse_expression()
 
@@ -186,7 +194,7 @@ class Stoat:
     ) -> None:
 
         calculator = NetworkCalculator(
-            spatial_table=self.spatial['table'],
+            spatial_table=self.spatial[self.table],
             motif_prior=motif_prior,
             ppi_prior=ppi_prior,
         )
