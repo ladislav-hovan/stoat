@@ -16,6 +16,8 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
+import spatialdata_plot
+
 import pandas as pd
 
 from functools import wraps
@@ -31,7 +33,7 @@ from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
 from stoat.modules.plotting import *
 from stoat.modules.region_assigner import RegionAssigner
-from stoat.modules.utils import weigh_by_distance
+from stoat.modules.utils import get_layer, weigh_by_distance
 
 ### Class definition ###
 class Stoat:
@@ -147,7 +149,36 @@ class Stoat:
         normalize_total(adata=self.spatial[self.table], *args, **kwargs)
 
 
-    # TODO: Implement plotting functions (fast via SpatialData)
+    def plot_spots(
+        self,
+        coordinate_systems: Optional[str] = None,
+        layer: Optional[str] = None,
+        color: Optional[str] = None,
+        ax: Optional[plt.Axes] = None,
+        **kwargs,
+    ) -> plt.Axes:
+
+        st = self.spatial[self.table]
+        if color not in st.obs.columns:
+            # If not a column, try to interpret as a function to be called
+            # on the sparse matrix
+            data = get_layer(st, layer)
+            if hasattr(data, color):
+                fn = getattr(data, color)
+                st.obs[color] = fn(axis=1)
+            else:
+                print (f"Can't recognise the color variable {color}, "
+                    'switching it to None.')
+                color = None
+
+        return self.spatial.pl.render_shapes(
+            color=color,
+            **kwargs,
+        ).pl.show(
+            coordinate_systems,
+            ax=ax,
+            return_ax=True,
+        )
 
 
     def average_expression(

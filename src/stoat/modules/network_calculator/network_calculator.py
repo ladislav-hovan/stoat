@@ -28,7 +28,7 @@ from typing import Iterable, Optional, Union
 
 from stoat.config import EXTENSION
 from stoat.modules.utils import (create_sparse_dataframe, get_network,
-    process_regions, save_dataframe)
+    get_validity, process_regions, save_dataframe)
 
 ### Class definition ###
 class NetworkCalculator:
@@ -110,12 +110,7 @@ class NetworkCalculator:
                 self.expr_data = self.st.varm[layer]
                 break
             elif layer in self.st.layers:
-                # TODO: This selection is done for grouping too
-                # Maybe unify it somehow to simplify
-                if 'valid' in self.st.obs.columns:
-                    valid = self.st.obs['valid']
-                else:
-                    valid = self.st.obs['in_tissue']
+                valid = get_validity(self.st.obs)
                 self.expr_data = create_sparse_dataframe(
                     self.st,
                     layer=layer,

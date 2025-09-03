@@ -90,8 +90,11 @@ def plot_spot_expression(
         # Use a specific gene or a summary function
         if type(colour_from) == str:
             colour_vals = expression[colour_from]
-        else:  # TODO: Explicitly check callable
+        elif callable(colour_from):
             colour_vals = expression.apply(colour_from, axis=1)
+        else:
+            raise ValueError('Cannot use the provided value of colour_from, '
+                'please provide a string or a callable.')
         cmap, norm, colours = generate_cmap_and_colours(colour_vals, colourmap,
             None, hide_overflow)
     else:
@@ -305,7 +308,8 @@ def generate_cmap_and_colours(
     values: pd.Series,
     colourmap: str,
     cm_limits: Optional[Tuple[Optional[float], Optional[float]]] = None,
-    hide_overflow: bool = True
+    hide_overflow: bool = True,
+    overflow_threshold: float = 0.01,
 ) -> Tuple[Colormap, Normalize, pd.Series]:
     """
     Generates the colourmap, the normalisation function and the
@@ -343,10 +347,10 @@ def generate_cmap_and_colours(
         vmax_value = max(values)
 
     if hide_overflow:
-        # Create a colourmap with an overflow value for the top 1%
+        # Create a colourmap with an overflow value for the top ones
         cmap.set_over('navy')
-        # TODO: Dispose of the magic numbers
-        vmax_value = sorted(values)[int(0.99 * len(values))]
+        vmax_value = sorted(values)[int((1 - overflow_threshold) *
+            len(values))]
     norm = Normalize(vmin=vmin_value, vmax=vmax_value)
     colours = values.apply(lambda x: norm(x))
 
@@ -603,27 +607,31 @@ def plot_gsea_dotplot(
 ) -> plt.Axes:
 
 
-    df = df.loc[df[column] <= threshold]
-    if len(df) == 0:
-        msg = f'No enriched terms with {column} <= {threshold}'
-        if ax is None:
-            raise ValueError(msg)
-        else:
-            ax.text(0.5, 0.5, msg, ha='center', va='center', fontsize=14,
-                transform=ax.transAxes)
-            ax.set_axis_off()
-            return
+    # df = df.loc[df[column] <= threshold]
+    # if len(df) == 0:
+    #     msg = f'No enriched terms with {column} <= {threshold}'
+    #     if ax is None:
+    #         raise ValueError(msg)
+    #     else:
+    #         ax.text(0.5, 0.5, msg, ha='center', va='center', fontsize=14,
+    #             transform=ax.transAxes)
+    #         ax.set_axis_off()
+    #         return
 
     colnd = {'Adjusted P-value': 'FDR', 'P-value': 'Pval', 'NOM p-val': 'Pval',
         'FDR q-val': 'FDR'}
     if column in colnd:
         df = df.sort_values(by=column)
-        df[column].replace(0, method='bfill', inplace=True)
+        df[column] = df[column].replace(0, None).bfill()
         df['p_inv'] = np.log10(1 / df[column].astype(float))
         colname = 'p_inv'
         cbar_title = r'$\log_{10} \frac{1}{ ' + colnd[column] + ' }$'
+    else:
+        colname = column
+        cbar_title = column
 
-    df = df.sort_values(by=colname).tail(n_terms)
+    # df = df.sort_values(by=colname).tail(n_terms)
+    df = df.head(n_terms)[::-1]
 
     if df.columns.isin(['Overlap', 'Tag %']).any():
         ol = df.columns[df.columns.isin(['Overlap', 'Tag %'])]
@@ -663,38 +671,38 @@ def plot_gsea_dotplot(
     ax.margins(x=0.25)
     ax.set_ylim(-1, len(df))
 
-    handles, labels = sc.legend_elements(
-        prop='sizes',
-        num=3,
-        fmt='{x:.2f}',
-        color='gray',
-        func=lambda s: (np.sqrt(s) / plt.rcParams['lines.markersize'] /
-            dot_scale),
-    )
-    ax.legend(
-        handles,
-        labels,
-        title='% Genes\nin set',
-        bbox_to_anchor=(1.02, 0.9),
-        loc='upper left',
-        frameon=False,
-        labelspacing=2,
-    )
+    # handles, labels = sc.legend_elements(
+    #     prop='sizes',
+    #     num=3,
+    #     fmt='{x:.2f}',
+    #     color='gray',
+    #     func=lambda s: (np.sqrt(s) / plt.rcParams['lines.markersize'] /
+    #         dot_scale),
+    # )
+    # ax.legend(
+    #     handles,
+    #     labels,
+    #     title='% Genes\nin set',
+    #     bbox_to_anchor=(1.02, 0.9),
+    #     loc='upper left',
+    #     frameon=False,
+    #     labelspacing=2,
+    # )
     ax.set_title(title, fontsize=20, fontweight='bold')
 
-    cbar = fig.colorbar(
-        sc,
-        shrink=0.25,
-        aspect=10,
-        anchor=(0.0, 0.2),
-        location='right',
-    )
-    cbar.ax.yaxis.set_tick_params(
-        color='white', direction='in', left=True, right=True
-    )
-    cbar.ax.set_title(cbar_title, loc='left', fontweight='bold')
-    for _, spine in cbar.ax.spines.items():
-        spine.set_visible(False)
+    # cbar = fig.colorbar(
+    #     sc,
+    #     shrink=0.25,
+    #     aspect=10,
+    #     anchor=(0.0, 0.2),
+    #     location='right',
+    # )
+    # cbar.ax.yaxis.set_tick_params(
+    #     color='white', direction='in', left=True, right=True
+    # )
+    # cbar.ax.set_title(cbar_title, loc='left', fontweight='bold')
+    # for _, spine in cbar.ax.spines.items():
+    #     spine.set_visible(False)
 
     return ax
 

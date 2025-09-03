@@ -21,7 +21,7 @@ import pandas as pd
 from anndata import AnnData
 from typing import Optional
 
-from stoat.modules.utils import create_sparse_dataframe
+from stoat.modules.utils import create_sparse_dataframe, get_validity
 
 ### Class definition ###
 class RegionAssigner:
@@ -56,10 +56,7 @@ class RegionAssigner:
         else:
             expr_df = create_sparse_dataframe(self.st)
 
-        if 'valid' in self.st.obs.columns:
-            valid = self.st.obs['valid']
-        else:
-            valid = self.st.obs['in_tissue']
+        valid = get_validity(self.st)
 
         region_to_spot = pd.get_dummies(
             self.st.obs['region'],

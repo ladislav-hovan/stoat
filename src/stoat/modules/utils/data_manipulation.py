@@ -18,26 +18,42 @@
 ### Imports and settings ###
 import pandas as pd
 
-from pathlib import Path
-from typing import List, Union
+from anndata import AnnData
+from typing import Optional
 
 ### Functions ###
-def process_regions(
-    expr_data: pd.DataFrame,
-    regions: Union[Path, List[str], None] = None,
-) -> List[str]:
+def get_validity(
+    adata: AnnData,
+) -> pd.Series:
 
-    if regions is None:
-        # Calculate a STOAT network for every region with valid spots
-        regions = expr_data.columns
-    elif type(regions) == list:
-        # Keep as is
-        pass
+    if 'valid' in adata.obs.columns:
+        valid = adata.obs['valid']
     else:
-        # Load the regions from a file
-        f = open(regions, 'r')
-        lines = f.readlines()
-        regions = [i.split('\n')[0] for i in lines]
-        f.close()
+        valid = adata.obs['in_tissue']
 
-    return regions
+    return valid
+
+
+def get_layer(
+    adata: AnnData,
+    layer: Optional[str] = None,
+) -> any:
+
+    if layer is None:
+        data = adata.X
+    else:
+        data = adata.layers[layer]
+
+    return data
+
+
+def create_sparse_dataframe(
+    adata: AnnData,
+    layer: Optional[str] = None,
+) -> pd.DataFrame:
+
+    return pd.DataFrame.sparse.from_spmatrix(
+        get_layer(adata, layer),
+        index=adata.obs_names,
+        columns=adata.var_names,
+    )
