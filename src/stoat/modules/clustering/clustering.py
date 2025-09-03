@@ -36,6 +36,7 @@ def normalise_data(
     normalise: bool = True,
     normalise_genes: bool = True,
 ) -> pd.DataFrame:
+
     # Subset only the valid spots
     df_f = df.loc[spatial[validity]]
     if normalise:
@@ -56,6 +57,7 @@ def create_anndata_with_pc(
     df_scaled: pd.DataFrame,
     n_variable: int = 2000,
 ) -> sc.AnnData:
+
     # Create an AnnData object from the DataFrame
     adata = sc.AnnData(df_scaled.copy(), df_scaled.index.to_frame(
         name='clusters'), df_scaled.columns.to_frame(name='gene_ids'))
@@ -70,6 +72,7 @@ def cluster_leiden(
     adata: sc.AnnData,
     clustering_opt: Mapping[Any, Any] = {},
 ) -> pd.Series:
+
     # Performs the Leiden clustering on the provided AnnData object with
     # principal components
     sc.pp.neighbors(adata)
@@ -85,6 +88,7 @@ def cluster_hdbscan(
     adata: sc.AnnData,
     clustering_opt: Mapping[Any, Any] = {},
 ) -> pd.Series:
+
     clusterer = hdbscan.HDBSCAN(**clustering_opt)
     clusterer.fit(adata.obsm['X_pca'])
     # Retrieve the annotated classes with a proper index
@@ -144,6 +148,7 @@ def determine_cluster_labels(
     exclude_extra: bool = False,
     max_classes: int = 20,
 ) -> Tuple[pd.Series, list, int]:
+
     # Determines the clusters in the data and returns the labels to be
     # used for plotting
     # Subset and scale data
@@ -174,6 +179,7 @@ def plot_clusters(
     ax: Optional[plt.Axes] = None,
     plotting_opt: Mapping[Any, Any] = {},
 ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
+
     # Plots the results of the clustering based on the spatial pandas
     # DataFrame and the cluster labels
     # Select which spots to display, rest is gray
@@ -206,6 +212,7 @@ def cluster_spots(
     exclude_extra: bool = False,
     plotting_opt: Mapping[Any, Any] = {},
 ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
+
     # Clusters the spots based on the provided pandas DataFrame with
     # data and a spatial pandas DataFrame
     classes, ordering, n_classes = determine_cluster_labels(
@@ -222,6 +229,7 @@ def compare_clusterings(
     arg_list: Iterable[dict],
     plots_per_row: int = 2,
 ) -> Tuple[plt.Figure, plt.Axes]:
+
     # Plots a meta figure displaying the clustering using different
     # options
     # Figure out how many rows and columns are actually needed

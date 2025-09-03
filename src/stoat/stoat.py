@@ -133,10 +133,16 @@ class Stoat:
             st.var['mt'] = st.var_names.str.startswith('MT-')
             calculate_qc_metrics(st, qc_vars=['mt'], inplace=True, log1p=False)
             filter = st.obs['pct_counts_mt'] <= mt_pct_threshold
-            self.spatial[self.table]._inplace_subset_obs(filter)
+            st.obs['in_tissue'] &= filter
 
         if args or kwargs:
-            filter_cells(data=self.spatial[self.table], *args, **kwargs)
+            filter,_ = filter_cells(
+                data=self.spatial[self.table],
+                inplace=False,
+                *args,
+                **kwargs
+            )
+            st.obs['in_tissue'] &= filter
 
 
     @wraps(normalize_total)
