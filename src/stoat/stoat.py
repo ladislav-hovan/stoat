@@ -103,7 +103,6 @@ class Stoat:
     def filter_genes(
         self,
         drop_deprecated: Optional[bool] = False,
-        *args,
         **kwargs,
     ) -> None:
 
@@ -116,15 +115,14 @@ class Stoat:
             else:
                 print ('No deprecated genes found.')
 
-        if args or kwargs:
-            filter_genes(data=self.spatial[self.table], *args, **kwargs)
+        if kwargs:
+            filter_genes(data=self.spatial[self.table], **kwargs)
 
 
     @wraps(filter_cells)
     def filter_spots(
         self,
         mt_pct_threshold: Optional[float] = None,
-        *args,
         **kwargs,
     ) -> None:
 
@@ -135,11 +133,10 @@ class Stoat:
             filter = st.obs['pct_counts_mt'] <= mt_pct_threshold
             st.obs['in_tissue'] &= filter
 
-        if args or kwargs:
+        if kwargs:
             filter,_ = filter_cells(
                 data=self.spatial[self.table],
                 inplace=False,
-                *args,
                 **kwargs
             )
             st.obs['in_tissue'] &= filter
