@@ -17,28 +17,20 @@
 
 ### Imports ###
 from stoat.modules.clustering import *
+from stoat.stoat import Stoat
 
 from typing import Optional, Literal, Dict, Any
 
 ### Class definition ###
-class StoatAnalysis:
+class StoatAnalysis(Stoat):
     ### Initialisation ###
     def __init__(
         self,
-        expr_df: pd.DataFrame,
-        ind_df: pd.DataFrame,
-        spatial_df: pd.DataFrame,
-        validity: str = 'Valid',
-        expr_clusters: Optional[pd.Series] = None,
-        ind_clusters: Optional[pd.Series] = None,
+        stoat_obj: Optional[Stoat] = None,
     ) -> None:
 
-        self.expression = expr_df
-        self.indegrees = ind_df
-        self.spatial = spatial_df
-        self.validity = validity
-        self.expr_clust = expr_clusters
-        self.ind_clust = ind_clusters
+        if stoat_obj is not None:
+            self.spatial = stoat_obj.spatial
 
     ### Class methods ###
     def determine_clusters(

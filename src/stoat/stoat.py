@@ -18,6 +18,7 @@
 ### Imports ###
 import spatialdata_plot
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 from functools import wraps
@@ -26,12 +27,12 @@ from scanpy.preprocessing import (calculate_qc_metrics, filter_cells,
     filter_genes, normalize_total)
 from spatialdata import SpatialData
 from spatialdata_io import visium, visium_hd
-from typing import Optional, Union
+from typing import Callable, Iterable, Optional, Union
 
-from stoat.config import *
+from stoat.config import EXTENSION
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
-from stoat.modules.plotting import *
+from stoat.modules.plotting import process_colour_variable
 from stoat.modules.region_assigner import RegionAssigner
 from stoat.modules.utils import get_layer, weigh_by_distance
 
@@ -69,6 +70,7 @@ class Stoat:
         self._spatial = value
 
     ### Methods ###
+    ## Data loading
     # TODO: Adjust the function signature (return None)
     # and documentation (format, type hints)
     @wraps(visium)
@@ -98,7 +100,7 @@ class Stoat:
         self.coord_type = 'grid'
         self.n_neighs = 4
 
-
+    ## Data preprocessing
     @wraps(filter_genes)
     def filter_genes(
         self,
@@ -151,31 +153,24 @@ class Stoat:
 
         normalize_total(adata=self.spatial[self.table], *args, **kwargs)
 
-
+    ## Plotting
     def plot_spots(
         self,
         coordinate_systems: Optional[str] = None,
         layer: Optional[str] = None,
-        color: Optional[str] = None,
+        colour: Optional[str] = None,
         ax: Optional[plt.Axes] = None,
         **kwargs,
     ) -> plt.Axes:
 
-        st = self.spatial[self.table]
-        if color not in st.obs.columns:
-            # If not a column, try to interpret as a function to be called
-            # on the sparse matrix
-            data = get_layer(st, layer)
-            if hasattr(data, color):
-                fn = getattr(data, color)
-                st.obs[color] = fn(axis=1)
-            else:
-                print (f"Can't recognise the color variable {color}, "
-                    'switching it to None.')
-                color = None
+        colour = process_colour_variable(
+            self.spatial[self.table],
+            layer=layer,
+            colour=colour,
+        )
 
         return self.spatial.pl.render_shapes(
-            color=color,
+            color=colour,
             **kwargs,
         ).pl.show(
             coordinate_systems,
@@ -183,7 +178,7 @@ class Stoat:
             return_ax=True,
         )
 
-
+    ## Main workflow
     def average_expression(
         self,
         n_rings: int = 1,

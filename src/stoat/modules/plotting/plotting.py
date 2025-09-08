@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from anndata import AnnData
 from math import ceil
 from matplotlib.colors import Colormap, Normalize
 from matplotlib.patches import Circle, RegularPolygon
@@ -31,18 +32,39 @@ from typing import (Any, Callable, Iterable, Mapping, Optional, Sequence,
     Tuple, Union)
 
 from stoat.config import DIMENSIONS
+from stoat.modules.utils import get_layer
 
 ### Functions ###
+def process_colour_variable(
+    spatial_table: AnnData,
+    layer: Optional[str] = None,
+    colour: Optional[str] = None,
+) -> str:
+
+    if colour not in spatial_table.obs.columns:
+        # If not a column, try to interpret as a function to be called
+        # on the sparse matrix
+        data = get_layer(spatial_table, layer)
+        if hasattr(data, colour):
+            fn = getattr(data, colour)
+            spatial_table.obs[colour] = fn(axis=1)
+        else:
+            print (f"Can't recognise the color variable {colour}, "
+                'switching it to None.')
+            colour = None
+
+    return colour
+
+
 def plot_spot_expression(
-    spatial: pd.DataFrame,
-    expression: pd.DataFrame,
+    spatial_table: AnnData,
     validity: str = 'isTissue',
     colour_from: Optional[Union[str, Callable]] = None,
     colourmap: str = 'Greens',
     label: Optional[str] = None,
     title: Optional[str] = None,
     hide_overflow: bool = True,
-    ax: Optional[plt.Axes] = None
+    ax: Optional[plt.Axes] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots the map of spots for the spatial expression data. It can
