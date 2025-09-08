@@ -16,10 +16,10 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
-from stoat.modules.clustering import *
+from stoat.modules.clustering import determine_cluster_labels
 from stoat.stoat import Stoat
 
-from typing import Optional, Literal, Dict, Any
+from typing import Any, Dict, Literal, Optional
 
 ### Class definition ###
 class StoatAnalysis(Stoat):

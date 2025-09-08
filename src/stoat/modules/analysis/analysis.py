@@ -26,10 +26,9 @@ import pandas as pd
 import scanpy as sc
 
 from pathlib import Path
-from typing import Union
+from typing import Optional, Tuple, Union
 
 from stoat.stoat import Stoat
-from stoat.modules.clustering import *
 
 FILE_LIKE = Union[str, bytes, os.PathLike]
 

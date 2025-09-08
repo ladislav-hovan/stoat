@@ -65,5 +65,11 @@ def cli(
 
     args = parser.parse_args()
 
-    with cp.cuda.Device(args.gpu_id):
-        stoat_obj = Stoat()
+    stoat_obj = Stoat()
+    # TODO: Add preprocessing steps
+    if args.gpu_id is not None:
+        with cp.cuda.Device(args.gpu_id):
+            # TODO: Add options to calculate_networks
+            stoat_obj.calculate_networks(computing='gpu')
+    else:
+        stoat_obj.calculate_networks()

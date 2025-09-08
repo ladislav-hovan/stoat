@@ -41,11 +41,14 @@ def process_colour_variable(
     colour: Optional[str] = None,
 ) -> str:
 
-    if colour not in spatial_table.obs.columns:
+    data = get_layer(spatial_table, layer)
+    if (colour not in spatial_table.var_names and 
+        colour not in spatial_table.obs.columns):
         # If not a column, try to interpret as a function to be called
         # on the sparse matrix
-        data = get_layer(spatial_table, layer)
-        if hasattr(data, colour):
+        if colour is None:
+            pass
+        elif hasattr(data, colour):
             fn = getattr(data, colour)
             spatial_table.obs[colour] = fn(axis=1)
         else:
@@ -58,12 +61,14 @@ def process_colour_variable(
 
 def plot_spot_expression(
     spatial_table: AnnData,
-    validity: str = 'isTissue',
+    layer: Optional[str] = None,
+    validity: str = 'in_tissue',
     colour_from: Optional[Union[str, Callable]] = None,
     colourmap: str = 'Greens',
     label: Optional[str] = None,
     title: Optional[str] = None,
     hide_overflow: bool = True,
+    overflow_threshold: float = 0.01,
     ax: Optional[plt.Axes] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
@@ -108,46 +113,62 @@ def plot_spot_expression(
     """
 
     # Create a colourmap and assign colours
-    if colour_from is not None:
-        # Use a specific gene or a summary function
-        if type(colour_from) == str:
-            colour_vals = expression[colour_from]
-        elif callable(colour_from):
-            colour_vals = expression.apply(colour_from, axis=1)
-        else:
-            raise ValueError('Cannot use the provided value of colour_from, '
-                'please provide a string or a callable.')
-        cmap, norm, colours = generate_cmap_and_colours(colour_vals, colourmap,
-            None, hide_overflow)
+    colour_col = process_colour_variable(
+        spatial_table,
+        layer=layer,
+        colour=colour_from,
+    )
+    if colour_col is not None:
+        # Use a specific gene or a summary function        
+        colour_vals = spatial_table.obs[colour_col]
+        cmap, norm, colours = generate_cmap_and_colours(
+            values=colour_vals,
+            colourmap=colourmap,
+            cm_limits=None,
+            hide_overflow=hide_overflow,
+            overflow_threshold=overflow_threshold,
+        )
     else:
         # All spots get the same colour
         cmap = plt.colormaps[colourmap]
-        colours = pd.Series(1, index=spatial.index)
+        colours = pd.Series(1, index=spatial_table.obs.index)
 
     # Create the basic hexagonal plot
     ax_create = ax is None
-    output = plot_hexagons(spatial, spatial[validity], colours, cmap, title,
-        ax)
+    output = plot_hexagons(
+        spatial_table,
+        validity=spatial_table.obs[validity],
+        colours=colours,
+        colourmap=cmap,
+        title=title,
+        ax=ax,
+    )
     if ax_create:
         fig, ax = output
 
     ax_height = ax.get_window_extent().height
-    if colour_from is not None:
+    if colour_col is not None:
         # Add a colourbar
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        cb = plt.colorbar(sm, ax=ax, fraction=0.1, shrink=0.5, pad=0.02)
-        cb.ax.tick_params(labelsize=ax_height / 60)
-        cb.set_label(label, size=ax_height / 40)
+        cb = plt.colorbar(
+            sm,
+            ax=ax,
+            fraction=0.1,
+            shrink=0.5,
+            pad=0.02,
+        )
+        cb.ax.tick_params(labelsize=(ax_height / 60))
+        cb.set_label(label, size=(ax_height / 40))
 
     if ax_create:
         return fig, ax
 
 
 def plot_spot_classification(
-    spatial: pd.DataFrame,
+    spatial_table: AnnData,
     classes: pd.Series,
-    validity: str = 'isTissue',
+    validity: str = 'in_tissue',
     colourmap: str = 'Set2',
     legend: bool = True,
     labels: Optional[Mapping] = None,
@@ -199,7 +220,7 @@ def plot_spot_classification(
     """
 
     # Use only classes present in valid spots
-    classes_valid = classes.loc[spatial[validity]]
+    classes_valid = classes.loc[spatial_table.obs[validity]]
     if ordering is None:
         # Order by frequency
         classes_list = list(classes_valid.value_counts().index)
@@ -215,13 +236,23 @@ def plot_spot_classification(
     # Create a colourmap and assign colours
     if n_classes is None:
         n_classes = len(classes_list)
-    cmap, norm, colours = generate_cmap_and_colours(classes_int, colourmap,
-        cm_limits=(-0.5, n_classes-0.5), hide_overflow=False)
+    cmap, norm, colours = generate_cmap_and_colours(
+        values=classes_int,
+        colourmap=colourmap,
+        cm_limits=(-0.5, n_classes-0.5),
+        hide_overflow=False,
+    )
 
     # Create the basic hexagonal plot
     ax_create = ax is None
-    output = plot_hexagons(spatial, spatial[validity], colours, cmap, title,
-        ax)
+    output = plot_hexagons(
+        spatial_table,
+        validity=spatial_table.obs[validity],
+        colours=colours,
+        colourmap=cmap,
+        title=title,
+        ax=ax,
+    )
     if ax_create:
         fig, ax = output
 
@@ -236,16 +267,28 @@ def plot_spot_classification(
         # Replot these chosen spots with a proper label
         for i in range(len(labels)):
             spot_index = sample_points.loc[i, 'index']
-            spot_spatial = spatial.loc[spot_index]
-            x,y = convert_coordinates(spot_spatial['xInd'],
-                spot_spatial['yInd'])
-            hex_spot = RegularPolygon((x,y), numVertices=6, radius=2/3,
-                orientation=np.radians(120), facecolor=cmap(norm(i)),
-                edgecolor='gray', label=labels[classes_list[i]])
+            spot_spatial = spatial_table.obs.loc[spot_index]
+            x,y = convert_coordinates(
+                spot_spatial['array_row'],
+                spot_spatial['array_col'],
+            )
+            hex_spot = RegularPolygon(
+                (x,y),
+                numVertices=6,
+                radius=2/3,
+                orientation=np.radians(120),
+                facecolor=cmap(norm(i)),
+                edgecolor='gray',
+                label=labels[classes_list[i]],
+            )
             ax.add_patch(hex_spot)
         # Create the legend
-        ax.legend(fontsize=16, loc='upper left', bbox_to_anchor=(0, 0),
-            handlelength=0.7)
+        ax.legend(
+            fontsize=16,
+            loc='upper left',
+            bbox_to_anchor=(0, 0),
+            handlelength=0.7,
+        )
 
     if ax_create:
         return fig, ax
@@ -283,7 +326,6 @@ def add_circle(
     fontsize : float, optional
         The font size for the label, by default 25
     """
-
 
     if ax is None:
         ax = plt.gca()
@@ -380,7 +422,7 @@ def generate_cmap_and_colours(
 
 
 def plot_hexagons(
-    spatial: pd.DataFrame,
+    spatial_table: AnnData,
     validity: pd.Series,
     colours: pd.Series,
     colourmap: Colormap,
@@ -418,7 +460,10 @@ def plot_hexagons(
     """
 
     # Cartesian coordinates
-    hcoord, vcoord = convert_coordinates(spatial['xInd'], spatial['yInd'])
+    hcoord, vcoord = convert_coordinates(
+        spatial_table.obs['array_row'],
+        spatial_table.obs['array_col'],
+    )
 
     # Create a figure
     ax_create = ax is None
@@ -461,13 +506,12 @@ def distribute_plots(
     n_plots: int,
     n_cols: int,
     n_lines: int = 10,
-    height_per_line = 0.3,
+    height_per_line: float = 0.3,
     overhead: float = 0.0,
     width_per_col: float = 3.0,
     fig: Optional[plt.Figure] = None,
     p_options: Optional[Sequence[Mapping[Any, Any]]] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
-
 
     n_rows = ceil(n_plots / n_cols)
 
@@ -500,7 +544,6 @@ def plot_deg_data_single(
     max_clusters: int = 20,
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
-
 
     dims = DIMENSIONS.loc['deg']
     if ax is None:
@@ -539,7 +582,6 @@ def plot_deg_data(
     fig: Optional[plt.Figure] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
 
-
     dims = DIMENSIONS.loc['deg']
     n_plots = len(data['scores'][0])
     common_opts = {'max_score': max_score, 'score_spacing': score_spacing,
@@ -575,7 +617,6 @@ def plot_deg_heatmap(
     background_colour: str = 'lightgrey',
     show_every: int = 1,
 ) -> Tuple[plt.Figure, plt.Axes]:
-
 
     df = data.iloc[::-1]
 
@@ -627,7 +668,6 @@ def plot_gsea_dotplot(
     ax: Optional[plt.Axes] = None,
     figsize: Tuple[float, float] = (4, 6),
 ) -> plt.Axes:
-
 
     # df = df.loc[df[column] <= threshold]
     # if len(df) == 0:
@@ -742,7 +782,6 @@ def plot_gsea_dotplots(
     fig: Optional[plt.Figure] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
 
-
     dims = DIMENSIONS.loc['gsea']
     n_plots = len(data)
     common_opts = {'column': column, 'threshold': threshold,
@@ -777,7 +816,6 @@ def plot_cluster_matching(
     fig: Optional[plt.Figure] = None,
     legend: bool = True,
 ) -> Tuple[plt.Figure, plt.Axes]:
-
 
     comp = pd.DataFrame([first.rename('first'), second.rename('second')]).T
     matching = comp.groupby('first').value_counts()

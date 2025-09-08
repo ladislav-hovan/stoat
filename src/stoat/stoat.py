@@ -34,7 +34,7 @@ from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
 from stoat.modules.plotting import process_colour_variable
 from stoat.modules.region_assigner import RegionAssigner
-from stoat.modules.utils import get_layer, weigh_by_distance
+from stoat.modules.utils import weigh_by_distance
 
 ### Class definition ###
 class Stoat:
