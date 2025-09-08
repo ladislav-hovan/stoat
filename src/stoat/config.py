@@ -25,8 +25,6 @@ from typing import Literal
 COMPUTING_TYPE = Literal['cpu', 'gpu']
 DISTANCE_KERNEL = Literal['uniform', 'gaussian']
 EXTENSION = Literal['tsv', 'feather', 'parquet']
-# URLs
-ENSEMBL_URL = 'http://www.ensembl.org/biomart/'
 # Plotting defaults
 DIMENSIONS = pd.DataFrame({
     'type': ['deg', 'gsea'],

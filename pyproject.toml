@@ -2,7 +2,6 @@
 requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
-
 [project]
 name = "netzoopy-stoat"
 authors = [
@@ -20,14 +19,21 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "biomart",
+    "anndata",
     "matplotlib",
     "netZooPy",
     "numpy",
     "pandas",
     "scanpy",
     "setuptools",  # Hidden dependency of netZooPy
+    "spatialdata",
+    "spatialdata-io",
+    "spatialdata-plot",
+    "squidpy",
 ]
+
+[project.scripts]
+netzoopy-stoat = "stoat.cli:cli"
 
 [project.urls]
 Repository = "https://github.com/ladislav-hovan/stoat"
@@ -37,7 +43,7 @@ version_scheme = "only-version"
 local_scheme = "no-local-version"
 
 [tool.pytest.ini_options]
-filterwarnings = ['ignore:pkg_resources is deprecated as an API']
+filterwarnings = ["ignore:pkg_resources is deprecated as an API"]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
