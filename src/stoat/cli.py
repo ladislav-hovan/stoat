@@ -62,10 +62,14 @@ def cli(
     parser.add_argument('-id', '--gpu-id', dest='gpu_id',
         help='ID of GPU to use, if not provided GPU will not be used',
         default=None, metavar='ID')
+    parser.add_argument('-dt', '--data-type', dest='data_type',
+        help='type of the dataset (visium or visium_hd)',
+        default='visium')
 
     args = parser.parse_args()
 
     stoat_obj = Stoat()
+    
     # TODO: Add preprocessing steps
     if args.gpu_id is not None:
         with cp.cuda.Device(args.gpu_id):

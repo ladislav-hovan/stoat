@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata",
+    "hdbscan",
     "matplotlib",
     "netZooPy",
     "numpy",

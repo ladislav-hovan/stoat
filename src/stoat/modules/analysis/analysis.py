@@ -26,61 +26,35 @@ import pandas as pd
 import scanpy as sc
 
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
+from stoat.config import EXTENSION, FILE_LIKE
 from stoat.stoat import Stoat
 
-FILE_LIKE = Union[str, bytes, os.PathLike]
-
 ### Functions ###
-def analyse_fully(
-    stoat_obj: Stoat,
-    stoat_folder: Path,
-    indegree_file: Optional[FILE_LIKE],
-    extension: str,
-    output_folder: Path,
-) -> None:
-    # Runs the entire pipeline
-    if not os.path.isdir(output_folder):
-        os.makedirs(output_folder)
+# TODO: This whole thing should be replaced by StoatAnalysis function
+# def analyse_fully(
+#     stoat_obj: Stoat,
+#     stoat_folder: Path,
+#     indegree_file: Optional[FILE_LIKE],
+#     extension: str,
+#     output_folder: Path,
+# ) -> None:
+#     # Runs the entire pipeline
+#     if not os.path.isdir(output_folder):
+#         os.makedirs(output_folder)
 
-    describe_expression(stoat_obj)
+#     describe_expression(stoat_obj)
 
-    if indegree_file is None:
-        if len(glob.glob(os.path.join(stoat_folder, 'indegree_*'))) == 0:
-            calculate_indegrees(stoat_folder, extension)
-        indegree_file = os.path.join(output_folder,
-            f'final_indegree.{extension}')
-        collate_indegrees(stoat_folder, extension, indegree_file)
+#     if indegree_file is None:
+#         if len(glob.glob(os.path.join(stoat_folder, 'indegree_*'))) == 0:
+#             calculate_indegrees(stoat_folder, extension)
+#         indegree_file = os.path.join(output_folder,
+#             f'final_indegree.{extension}')
+#         collate_indegrees(stoat_folder, extension, indegree_file)
 
-    # Clustering on expression - unfiltered/filtered
-    # Clustering on indegree - unfiltered/filtered
-
-
-def prepare_stoat_object(
-    prior_dir: Path,
-    data_dir: Path,
-) -> Stoat:
-    # Loads a STOAT object
-    stoat_obj = Stoat(
-        motif_prior=prior_dir + 'tf_prior_fixed.tsv',
-        ppi_prior=prior_dir + 'ppi_prior.tsv',
-        computing='gpu',
-        output_extension='feather')
-
-    stoat_obj.load_expression_raw(
-        matrix_path=data_dir + 'matrix.mtx',
-        barcodes_path=data_dir + 'barcodes.tsv',
-        features_path=data_dir + 'features.tsv')
-
-    positions_file = glob.glob(data_dir + 'tissue_positions*.csv')[0]
-    stoat_obj.load_spatial(positions_file)
-
-    stoat_obj.ensure_compatibility()
-    stoat_obj.remove_nan()
-    stoat_obj.drop_deprecated()
-
-    return stoat_obj
+#     # Clustering on expression - unfiltered/filtered
+#     # Clustering on indegree - unfiltered/filtered
 
 
 def describe_expression(
@@ -100,14 +74,14 @@ def describe_expression(
 
     gene_coverage = {}
     cov_lambda = lambda row: np.mean(row > 0)
-    gene_coverage[-1] = expr_df.loc[spatial_df['isTissue']].apply(
+    gene_coverage[-1] = expr_df.loc[spatial_df['in_tissue']].apply(
         cov_lambda, axis=1)
     stoat_obj.filter_genes()
-    success = stoat_obj.expression.loc[spatial_df['isTissue']]
+    success = stoat_obj.expression.loc[spatial_df['in_tissue']]
     gene_coverage[0] = success.apply(cov_lambda, axis=1)
     for i in range(1, 4):
         stoat_obj.average_expression(neighbours=i)
-        avg_success = stoat_obj.avg_expression.loc[spatial_df['isTissue']]
+        avg_success = stoat_obj.avg_expression.loc[spatial_df['in_tissue']]
         gene_coverage[i] = avg_success.apply(cov_lambda, axis=1)
 
     if ax is None:
@@ -126,9 +100,10 @@ def describe_expression(
     return ax
 
 
-def calculate_indegrees(
+def calculate_degrees(
     stoat_folder: Path,
     extension: str,
+    which: Literal['in', 'out', 'both'] = 'in',
     output_file_base: FILE_LIKE = 'final_indegree',
 ) -> None:
     # Calculates indegrees and saves them for every STOAT network in
@@ -158,7 +133,7 @@ def load_into_df(
 def save_into_file(
     df: Union[pd.DataFrame, pd.Series],
     filename: FILE_LIKE,
-    extension: str,
+    extension: EXTENSION,
 ) -> None:
     # Saves the df into a file with proper extension
     if extension == 'tsv':
@@ -177,7 +152,7 @@ def save_into_file(
 
 def collate_indegrees(
     stoat_folder: Path,
-    extension: str,
+    extension: EXTENSION,
     output_file: FILE_LIKE,
 ) -> None:
     # Gathers the data from all indegree files in a folder and puts

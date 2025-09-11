@@ -32,7 +32,8 @@ from typing import Callable, Iterable, Optional, Union
 from stoat.config import EXTENSION
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
-from stoat.modules.plotting import process_colour_variable
+from stoat.modules.plotting import (plot_spot_classification,
+    process_colour_variable)
 from stoat.modules.region_assigner import RegionAssigner
 from stoat.modules.utils import weigh_by_distance
 
@@ -170,6 +171,7 @@ class Stoat:
         )
 
         return self.spatial.pl.render_shapes(
+            table_layer=layer,
             color=colour,
             **kwargs,
         ).pl.show(
@@ -177,6 +179,20 @@ class Stoat:
             ax=ax,
             return_ax=True,
         )
+
+
+    def plot_regions(
+        self,
+        **kwargs,
+    ) -> plt.Axes:
+
+        ax = plot_spot_classification(
+            self.spatial[self.table],
+            self.spatial[self.table].obs['region_id'],
+            **kwargs,
+        )
+
+        return ax
 
     ## Main workflow
     def average_expression(
@@ -204,10 +220,18 @@ class Stoat:
     def assign_regions(
         self,
         mapping: Optional[pd.Series] = None,
+        from_expression: bool = False,
+        layer: Optional[str] = None,
+        **kwargs,
     ) -> None:
 
         assigner = RegionAssigner(spatial_table=self.spatial[self.table])
-        assigner.assign_regions(mapping=mapping)
+        assigner.assign_regions(
+            mapping=mapping,
+            from_expression=from_expression,
+            layer=layer,
+            **kwargs,
+        )
         assigner.collapse_expression()
 
 
@@ -222,7 +246,6 @@ class Stoat:
         save_network: bool = False,
         save_degrees: bool = False,
         overwrite_old: bool = True,
-        *args,
         **kwargs,
     ) -> None:
 
@@ -234,7 +257,7 @@ class Stoat:
         calculator.ensure_compatibility()
         if log1p_transform:
             calculator.log1p_transform()
-        calculator.calculate_basis(*args, **kwargs)
+        calculator.calculate_basis(**kwargs)
         calculator.calculate(
             save_dir=save_dir,
             extension=extension,
@@ -242,6 +265,5 @@ class Stoat:
             save_network=save_network,
             save_degrees=save_degrees,
             overwrite_old=overwrite_old,
-            *args,
             **kwargs,
         )

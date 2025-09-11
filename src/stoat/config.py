@@ -18,13 +18,15 @@
 ### Imports ###
 import pandas as pd
 
-from typing import Literal
+from pathlib import Path
+from typing import Literal, Union
 
 ### Definitions ###
 # Typing literals
-COMPUTING_TYPE = Literal['cpu', 'gpu']
+CLUSTERING = Literal['leiden', 'hdbscan']
 DISTANCE_KERNEL = Literal['uniform', 'gaussian']
 EXTENSION = Literal['tsv', 'feather', 'parquet']
+FILE_LIKE = Union[bytes, Path]
 # Plotting defaults
 DIMENSIONS = pd.DataFrame({
     'type': ['deg', 'gsea'],

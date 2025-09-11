@@ -19,6 +19,7 @@
 import pandas as pd
 
 from anndata import AnnData
+from scipy.sparse import csr_matrix
 from typing import Optional
 
 ### Functions ###
@@ -37,7 +38,7 @@ def get_validity(
 def get_layer(
     adata: AnnData,
     layer: Optional[str] = None,
-) -> any:
+) -> csr_matrix:
 
     if layer is None:
         data = adata.X

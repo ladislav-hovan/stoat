@@ -21,7 +21,9 @@ import pandas as pd
 from anndata import AnnData
 from typing import Optional
 
-from stoat.modules.utils import create_sparse_dataframe, get_validity
+from stoat.modules.clustering import determine_cluster_labels
+from stoat.modules.utils import (create_sparse_dataframe, get_layer,
+    get_validity)
 
 ### Class definition ###
 class RegionAssigner:
@@ -37,14 +39,30 @@ class RegionAssigner:
     def assign_regions(
         self,
         mapping: Optional[pd.Series] = None,
+        from_expression: bool = False,
+        layer: Optional[str] = None,
+        **kwargs,
     ) -> None:
 
-        if mapping is not None:
+        if from_expression and mapping is not None:
+            raise ValueError('Both from_expression and mapping were specified,'
+                ' please provide only one of them.')
+
+        if from_expression:
+            # Assign regions based on expression clustering
+            determine_cluster_labels(
+                self.st,
+                layer=layer,
+                validity=('in_tissue' if layer is None else 'valid'),
+                key_added='region_id',
+                **kwargs,
+            )
+        elif mapping is not None:
             # Assignment of spots to regions
-            self.st.obs['region'] = mapping
+            self.st.obs['region_id'] = mapping
         else:
             # Every spot is its own region
-            self.st.obs['region'] = self.st.obs.index
+            self.st.obs['region_id'] = self.st.obs.index
 
 
     def collapse_expression(
@@ -59,7 +77,7 @@ class RegionAssigner:
         valid = get_validity(self.st)
 
         region_to_spot = pd.get_dummies(
-            self.st.obs['region'],
+            self.st.obs['region_id'],
             sparse=True,
             dtype=int,
         ).T

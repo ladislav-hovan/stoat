@@ -42,7 +42,7 @@ def process_colour_variable(
 ) -> str:
 
     data = get_layer(spatial_table, layer)
-    if (colour not in spatial_table.var_names and 
+    if (colour not in spatial_table.var_names and
         colour not in spatial_table.obs.columns):
         # If not a column, try to interpret as a function to be called
         # on the sparse matrix
@@ -50,9 +50,10 @@ def process_colour_variable(
             pass
         elif hasattr(data, colour):
             fn = getattr(data, colour)
+            colour = '_temp_colour_col'
             spatial_table.obs[colour] = fn(axis=1)
         else:
-            print (f"Can't recognise the color variable {colour}, "
+            print (f'Cannot recognise the color variable {colour}, '
                 'switching it to None.')
             colour = None
 
@@ -70,7 +71,7 @@ def plot_spot_expression(
     hide_overflow: bool = True,
     overflow_threshold: float = 0.01,
     ax: Optional[plt.Axes] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> plt.Axes:
     """
     Plots the map of spots for the spatial expression data. It can
     colour the spots based on an additional supplied gene name.
@@ -119,12 +120,17 @@ def plot_spot_expression(
         colour=colour_from,
     )
     if colour_col is not None:
-        # Use a specific gene or a summary function        
-        colour_vals = spatial_table.obs[colour_col]
-        cmap, norm, colours = generate_cmap_and_colours(
+        # Use a specific gene or a summary function
+        if colour_col in spatial_table.var_names:
+            colour_vals = spatial_table[:,colour_col].to_df(
+                layer=layer)[colour_col]
+        else:
+            colour_vals = spatial_table.obs[colour_col]
+        cmap,norm,colours = generate_cmap_and_colours(
             values=colour_vals,
             colourmap=colourmap,
             cm_limits=None,
+            unclassified_label=None,
             hide_overflow=hide_overflow,
             overflow_threshold=overflow_threshold,
         )
@@ -139,12 +145,11 @@ def plot_spot_expression(
         spatial_table,
         validity=spatial_table.obs[validity],
         colours=colours,
-        colourmap=cmap,
         title=title,
         ax=ax,
     )
     if ax_create:
-        fig, ax = output
+        ax = output
 
     ax_height = ax.get_window_extent().height
     if colour_col is not None:
@@ -162,7 +167,7 @@ def plot_spot_expression(
         cb.set_label(label, size=(ax_height / 40))
 
     if ax_create:
-        return fig, ax
+        ax
 
 
 def plot_spot_classification(
@@ -170,13 +175,14 @@ def plot_spot_classification(
     classes: pd.Series,
     validity: str = 'in_tissue',
     colourmap: str = 'Set2',
+    unclassified_label: int = -1,
     legend: bool = True,
     labels: Optional[Mapping] = None,
     title: Optional[str] = None,
     ordering: Optional[Iterable[str]] = None,
     n_classes: Optional[int] = None,
     ax: Optional[plt.Axes] = None
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> plt.Axes:
     """
     Plots the map of spots coloured by their classification.
 
@@ -236,10 +242,11 @@ def plot_spot_classification(
     # Create a colourmap and assign colours
     if n_classes is None:
         n_classes = len(classes_list)
-    cmap, norm, colours = generate_cmap_and_colours(
+    cmap,norm,colours = generate_cmap_and_colours(
         values=classes_int,
         colourmap=colourmap,
         cm_limits=(-0.5, n_classes-0.5),
+        unclassified_label=unclassified_label,
         hide_overflow=False,
     )
 
@@ -249,12 +256,11 @@ def plot_spot_classification(
         spatial_table,
         validity=spatial_table.obs[validity],
         colours=colours,
-        colourmap=cmap,
         title=title,
         ax=ax,
     )
     if ax_create:
-        fig, ax = output
+        ax = output
 
     # Add the legend if required
     if legend:
@@ -273,7 +279,7 @@ def plot_spot_classification(
                 spot_spatial['array_col'],
             )
             hex_spot = RegularPolygon(
-                (x,y),
+                (x, y),
                 numVertices=6,
                 radius=2/3,
                 orientation=np.radians(120),
@@ -291,7 +297,7 @@ def plot_spot_classification(
         )
 
     if ax_create:
-        return fig, ax
+        ax
 
 
 def add_circle(
@@ -372,6 +378,7 @@ def generate_cmap_and_colours(
     values: pd.Series,
     colourmap: str,
     cm_limits: Optional[Tuple[Optional[float], Optional[float]]] = None,
+    unclassified_label: int = -1,
     hide_overflow: bool = True,
     overflow_threshold: float = 0.01,
 ) -> Tuple[Colormap, Normalize, pd.Series]:
@@ -416,19 +423,19 @@ def generate_cmap_and_colours(
         vmax_value = sorted(values)[int((1 - overflow_threshold) *
             len(values))]
     norm = Normalize(vmin=vmin_value, vmax=vmax_value)
-    colours = values.apply(lambda x: norm(x))
+    colours = values.apply(lambda x: 'darkgray'
+        if x == unclassified_label else cmap(norm(x)))
 
-    return cmap, norm, colours
+    return (cmap, norm, colours)
 
 
 def plot_hexagons(
     spatial_table: AnnData,
     validity: pd.Series,
     colours: pd.Series,
-    colourmap: Colormap,
     title: Optional[str] = None,
     ax: Optional[plt.Axes] = None
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> plt.Axes:
     """
     Plots the map of spots for the spatial expression data as hexagons.
     Validity and colours are based on the provided series.
@@ -468,7 +475,7 @@ def plot_hexagons(
     # Create a figure
     ax_create = ax is None
     if ax_create:
-        fig, ax = plt.subplots(1, figsize=(16, 16), tight_layout=True)
+        _,ax = plt.subplots(1, figsize=(16, 16), tight_layout=True)
     ax.set_aspect('equal')
     ax.set_axis_off()
 
@@ -478,27 +485,32 @@ def plot_hexagons(
 
     # Add coloured hexagons to the plot
     for ind in plot_df.index:
-        x, y, c, v = plot_df.loc[ind]
+        x,y,c,v = plot_df.loc[ind]
         if not v:
             # Invalid hexagons are grey
             facecolor = 'gray'
         else:
-            facecolor = colourmap(c)
-        hex_spot = RegularPolygon((x,y), numVertices=6, radius=2/3,
-            orientation=np.radians(120), facecolor=facecolor,
-            edgecolor='gray')
+            facecolor = c
+        hex_spot = RegularPolygon(
+            (x, y),
+            numVertices=6,
+            radius=2/3,
+            orientation=np.radians(120),
+            facecolor=facecolor,
+            edgecolor='gray',
+        )
         ax.add_patch(hex_spot)
 
     # Adjust the limits
-    ax.set_xlim(min(hcoord)-1, max(hcoord)+1)
-    ax.set_ylim(min(vcoord)-1, max(vcoord)+1)
+    ax.set_xlim(min(hcoord) - 1, max(hcoord) + 1)
+    ax.set_ylim(min(vcoord) - 1, max(vcoord) + 1)
 
     if title is not None:
         # Add a figure title
         ax.set_title(title, size=ax.get_window_extent().height / 40)
 
     if ax_create:
-        return fig, ax
+        return ax
 
 
 def distribute_plots(
@@ -516,10 +528,15 @@ def distribute_plots(
     n_rows = ceil(n_plots / n_cols)
 
     if fig is None:
-        fig,ax = plt.subplots(n_rows, n_cols,
-            figsize=(n_cols * width_per_col,
-                n_rows * (n_lines + overhead) * height_per_line),
-            tight_layout=True)
+        fig,ax = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(
+                n_cols * width_per_col,
+                n_rows * (n_lines + overhead) * height_per_line,
+            ),
+            tight_layout=True,
+        )
     else:
         ax = fig.subplots(n_rows, n_cols)
 
@@ -531,7 +548,7 @@ def distribute_plots(
         ax_i = ax[i // n_cols][i % n_cols]
         ax_i.set_axis_off()
 
-    return fig,ax
+    return (fig, ax)
 
 
 def plot_deg_data_single(
@@ -584,9 +601,14 @@ def plot_deg_data(
 
     dims = DIMENSIONS.loc['deg']
     n_plots = len(data['scores'][0])
-    common_opts = {'max_score': max_score, 'score_spacing': score_spacing,
-        'cmap': cmap, 'max_clusters': max_clusters, 'data': data,
-        'n_genes': n_genes}
+    common_opts = {
+        'max_score': max_score,
+        'score_spacing': score_spacing,
+        'cmap': cmap,
+        'max_clusters': max_clusters,
+        'data': data,
+        'n_genes': n_genes,
+    }
     p_options = [common_opts.copy() for _ in range(n_plots)]
     for i in range(n_plots):
         p_options[i]['cluster_id'] = i
@@ -603,7 +625,7 @@ def plot_deg_data(
         p_options=p_options,
     )
 
-    return fig,ax
+    return (fig, ax)
 
 
 def plot_deg_heatmap(
@@ -616,7 +638,7 @@ def plot_deg_heatmap(
     cluster_colour: str = 'red',
     background_colour: str = 'lightgrey',
     show_every: int = 1,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> plt.Axes:
 
     df = data.iloc[::-1]
 
@@ -624,7 +646,7 @@ def plot_deg_heatmap(
     vmax = np.percentile(df, percentile[1])
     norm = Normalize(vmin=vmin, vmax=vmax)
 
-    fig,ax = plt.subplots(figsize=figsize)
+    _,ax = plt.subplots(figsize=figsize)
     pcm = ax.pcolormesh(df.values, rasterized=True, norm=norm, cmap=cmap)
     ax.set_title(title, size=18)
 
@@ -637,7 +659,7 @@ def plot_deg_heatmap(
         df.index[::show_every])
     ax.yaxis.set_tick_params('major', left=False)
 
-    cb = fig.colorbar(mappable=pcm, ax=ax, shrink=0.5, aspect=10)
+    cb = plt.colorbar(mappable=pcm, ax=ax, shrink=0.5, aspect=10)
     cb.ax.yaxis.set_tick_params(
         color='white', direction='in', left=True, right=True,
     )
@@ -652,7 +674,7 @@ def plot_deg_heatmap(
     for side in ['top', 'right', 'left', 'bottom']:
         ax.spines[side].set_visible(False)
 
-    return fig,ax
+    return ax
 
 
 def plot_gsea_dotplot(

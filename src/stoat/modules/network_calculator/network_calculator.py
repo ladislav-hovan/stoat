@@ -97,7 +97,6 @@ class NetworkCalculator:
 
     def calculate_basis(
         self,
-        *args,
         **kwargs,
     ) -> None:
 
@@ -121,7 +120,6 @@ class NetworkCalculator:
             expression_file=self.expr_data,
             motif_file=self.motif_prior,
             ppi_file=self.ppi_prior,
-            *args,
             **kwargs,
         )
 
@@ -136,7 +134,6 @@ class NetworkCalculator:
         save_network: bool = False,
         save_degrees: bool = False,
         overwrite_old = True,
-        *args,
         **kwargs,
     ) -> None:
 
@@ -182,7 +179,6 @@ class NetworkCalculator:
                 expression_file=grn_input.drop(r, axis=1),
                 motif_file=self.motif_prior,
                 ppi_file=self.ppi_prior,
-                *args,
                 **kwargs,
             )
 
