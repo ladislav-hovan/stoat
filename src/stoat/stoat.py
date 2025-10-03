@@ -29,7 +29,7 @@ from spatialdata import SpatialData
 from spatialdata_io import visium, visium_hd
 from typing import Callable, Iterable, Optional, Union
 
-from stoat.config import EXTENSION
+from stoat.config import FORMAT
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
 from stoat.modules.plotting import (plot_spot_classification,
@@ -181,14 +181,17 @@ class Stoat:
         )
 
 
+    @wraps(plot_spot_classification)
     def plot_regions(
         self,
+        *args,
         **kwargs,
     ) -> plt.Axes:
 
         ax = plot_spot_classification(
             self.spatial[self.table],
             self.spatial[self.table].obs['region_id'],
+            *args,
             **kwargs,
         )
 
@@ -241,7 +244,7 @@ class Stoat:
         motif_prior: Optional[Union[Path, pd.DataFrame]] = None,
         ppi_prior: Optional[Union[Path, pd.DataFrame]] = None,
         log1p_transform: bool = True,
-        extension: EXTENSION = 'feather',
+        format: FORMAT = 'feather',
         regions: Union[Path, Iterable[str], None] = None,
         save_network: bool = False,
         save_degrees: bool = False,
@@ -260,7 +263,7 @@ class Stoat:
         calculator.calculate_basis(**kwargs)
         calculator.calculate(
             save_dir=save_dir,
-            extension=extension,
+            format=format,
             regions=regions,
             save_network=save_network,
             save_degrees=save_degrees,

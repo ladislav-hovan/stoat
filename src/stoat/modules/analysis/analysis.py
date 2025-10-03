@@ -28,8 +28,9 @@ import scanpy as sc
 from pathlib import Path
 from typing import Literal, Optional, Tuple, Union
 
-from stoat.config import EXTENSION, FILE_LIKE
-from stoat.stoat import Stoat
+from stoat import Stoat
+from stoat.config import FORMAT, FILE_LIKE
+from stoat.modules.utils import get_layer
 
 ### Functions ###
 # TODO: This whole thing should be replaced by StoatAnalysis function
@@ -59,35 +60,31 @@ from stoat.stoat import Stoat
 
 def describe_expression(
     stoat_obj: Stoat,
+    layer: Optional[str] = None,
     ax: Optional[plt.Axes] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> plt.Axes:
     # Provides details about the expression sparsity
-    expr_df = stoat_obj.expression
-    spatial_df = stoat_obj.spatial
-
+    st = stoat_obj.spatial[stoat_obj.table]
     print ('Proportion of spots with tissue: '
-        f'{100 * spatial_df["isTissue"].sum() / len(spatial_df):.2f} %')
-    avg_sparsity = (expr_df.loc[spatial_df['isTissue']] == 0).mean(
+        f'{100 * st.obs["in_tissue"].sum() / len(st.obs):.2f} %')
+    expr_mat = get_layer(st, layer)
+    avg_sparsity = (expr_mat[st.obs['in_tissue'].values,:] != 0).mean(
         axis=1).mean()
     print ('Average sparsity of genes in a spot with tissue: '
-        f'{100 * avg_sparsity:.2f} %')
+        f'{100 * (1 - avg_sparsity):.2f} %')
 
     gene_coverage = {}
-    cov_lambda = lambda row: np.mean(row > 0)
-    gene_coverage[-1] = expr_df.loc[spatial_df['in_tissue']].apply(
-        cov_lambda, axis=1)
-    stoat_obj.filter_genes()
-    success = stoat_obj.expression.loc[spatial_df['in_tissue']]
-    gene_coverage[0] = success.apply(cov_lambda, axis=1)
+    gene_coverage[0] = (expr_mat[st.obs['in_tissue'].values,:] != 0).mean(
+        axis=1).A1
     for i in range(1, 4):
-        stoat_obj.average_expression(neighbours=i)
-        avg_success = stoat_obj.avg_expression.loc[spatial_df['in_tissue']]
-        gene_coverage[i] = avg_success.apply(cov_lambda, axis=1)
+        stoat_obj.average_expression(n_rings=i)
+        avg_success = st.layers['averaged'][st.obs['in_tissue'].values,:]
+        gene_coverage[i] = (avg_success != 0).mean(axis=1).A1
 
     if ax is None:
         _,ax = plt.subplots(figsize=(8,8))
-    labels = ['Raw data', 'Filtered genes', 'Filtered + 1 neighbour',
-        'Filtered + 2 neighbours', 'Filtered + 3 neighbours']
+    labels = ['Original data', '1st neighbours',
+        '2nd neighbours', '3rd neighbours']
     for label,data in zip(labels, gene_coverage.values()):
         ax.hist(data, bins=120, range=(0,1), alpha=0.5, label=label)
 
@@ -113,19 +110,19 @@ def calculate_degrees(
 
 def load_into_df(
     filename: FILE_LIKE,
-    extension: str,
+    format: FORMAT,
 ) -> pd.DataFrame:
-    # Loads the df from a file with a given extension
-    if extension == 'tsv':
+    # Loads the df from a file with a given format
+    if format == 'tsv':
         df = pd.read_csv(filename, sep='\t', index_col=0)
-    elif extension == 'feather':
+    elif format == 'feather':
         # Resetting the index will convert to DataFrame
         df = pd.read_feather(filename).set_index('index')
         df.index.rename(None, inplace=True)
-    elif extension == 'parquet':
+    elif format == 'parquet':
         df = pd.read_parquet(filename)
     else:
-        print ('Extension not recognised')
+        print ('Format not recognised')
 
     return df
 
@@ -133,40 +130,40 @@ def load_into_df(
 def save_into_file(
     df: Union[pd.DataFrame, pd.Series],
     filename: FILE_LIKE,
-    extension: EXTENSION,
+    format: FORMAT,
 ) -> None:
     # Saves the df into a file with proper extension
-    if extension == 'tsv':
+    if format == 'tsv':
         df.to_csv(filename, sep='\t')
-    elif extension == 'feather':
+    elif format == 'feather':
         # Resetting the index will convert to DataFrame
         df.reset_index().to_feather(filename)
-    elif extension == 'parquet':
+    elif format == 'parquet':
         if type(df) == pd.DataFrame:
             df.to_parquet(filename)
         else:
             df.to_frame().to_parquet(filename)
     else:
-        print ('Extension not recognised')
+        print ('Format not recognised')
 
 
 def collate_indegrees(
     stoat_folder: Path,
-    extension: EXTENSION,
+    format: FORMAT,
     output_file: FILE_LIKE,
 ) -> None:
     # Gathers the data from all indegree files in a folder and puts
     # it into a single file
     id_files = glob.glob(os.path.join(stoat_folder,
-        f'indegree_*.{extension}'))
+        f'indegree_*.{format}'))
     collection = []
     for file in id_files:
-        temp = load_into_df(file, extension)
+        temp = load_into_df(file, format)
         base_name = file.split('.')[-2].split('_')[-1]
         temp.rename(columns={'Indegrees': base_name}, inplace=True)
         collection.append(temp.copy())
     df = pd.concat(collection, axis=1)
-    save_into_file(df, output_file, extension)
+    save_into_file(df, output_file, format)
 
 
 def perform_gsea(

@@ -289,6 +289,7 @@ def plot_spot_classification(
             )
             ax.add_patch(hex_spot)
         # Create the legend
+        # TODO: Remove magic numbers to make it scalable
         ax.legend(
             fontsize=16,
             loc='upper left',
@@ -371,7 +372,7 @@ def convert_coordinates(
     # Horizontal cartesian coordinates
     new_x = (2 * np.sin(np.radians(60)) / 3) * y
 
-    return new_x, new_y
+    return (new_x, new_y)
 
 
 def generate_cmap_and_colours(
@@ -411,7 +412,7 @@ def generate_cmap_and_colours(
 
     if cm_limits is None:
         cm_limits = (None, None)
-    vmin_value, vmax_value = cm_limits
+    vmin_value,vmax_value = cm_limits
     if vmin_value is None:
         vmin_value = min(values)
     if vmax_value is None:
@@ -523,7 +524,7 @@ def distribute_plots(
     width_per_col: float = 3.0,
     fig: Optional[plt.Figure] = None,
     p_options: Optional[Sequence[Mapping[Any, Any]]] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> Tuple[plt.Figure, Union[plt.Axes, np.array]]:
 
     n_rows = ceil(n_plots / n_cols)
 
@@ -597,7 +598,7 @@ def plot_deg_data(
     cmap: str = 'tab20',
     max_clusters: int = 20,
     fig: Optional[plt.Figure] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> Tuple[plt.Figure, Union[plt.Axes, np.array]]:
 
     dims = DIMENSIONS.loc['deg']
     n_plots = len(data['scores'][0])
@@ -802,7 +803,7 @@ def plot_gsea_dotplots(
     cmap: str = 'viridis_r',
     dot_scale: float = 5.0,
     fig: Optional[plt.Figure] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> Tuple[plt.Figure, Union[plt.Axes, np.array]]:
 
     dims = DIMENSIONS.loc['gsea']
     n_plots = len(data)
@@ -826,7 +827,7 @@ def plot_gsea_dotplots(
         p_options=p_options,
     )
 
-    return fig,ax
+    return (fig, ax)
 
 
 def plot_cluster_matching(
@@ -837,7 +838,7 @@ def plot_cluster_matching(
     max_clusters: int = 20,
     fig: Optional[plt.Figure] = None,
     legend: bool = True,
-) -> Tuple[plt.Figure, plt.Axes]:
+) -> Tuple[plt.Figure, Union[plt.Axes, np.array]]:
 
     comp = pd.DataFrame([first.rename('first'), second.rename('second')]).T
     matching = comp.groupby('first').value_counts()
@@ -878,4 +879,4 @@ def plot_cluster_matching(
             ['Not in cluster'],
             bbox_to_anchor=(1, 1), loc='upper left', handlelength=0.7)
 
-    return fig,ax
+    return (fig, ax)

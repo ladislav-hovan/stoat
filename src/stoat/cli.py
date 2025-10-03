@@ -21,7 +21,7 @@ import cupy as cp
 from argparse import (ArgumentDefaultsHelpFormatter, ArgumentParser,
     RawDescriptionHelpFormatter)
 
-from .stoat import Stoat
+from stoat.stoat import Stoat
 
 ### Class definition ###
 class CustomFormatter(
@@ -52,24 +52,27 @@ def cli(
 
     STOAT - Spatial TranscriptOmics to Assess Transcriptional regulation.
     Generates spatially resolved gene regulatory networks, by default using PANDA.
-    The underlying approach is similar to 
-    that used by LIONESS."""
+    The underlying approach is similar to that used by LIONESS."""
     EPILOG = 'Code available on: https://github.com/ladislav-hovan/stoat'
 
     parser = ArgumentParser(formatter_class=CustomFormatter,
         description=DESCRIPTION, epilog=EPILOG)
 
-    parser.add_argument('-id', '--gpu-id', dest='gpu_id',
+    parser.add_argument(
+        '-id', '--gpu-id', dest='gpu_id',
         help='ID of GPU to use, if not provided GPU will not be used',
-        default=None, metavar='ID')
-    parser.add_argument('-dt', '--data-type', dest='data_type',
+        default=None, metavar='ID',
+    )
+    parser.add_argument(
+        '-dt', '--data-type', dest='data_type',
         help='type of the dataset (visium or visium_hd)',
-        default='visium')
+        default='visium',
+    )
 
     args = parser.parse_args()
 
     stoat_obj = Stoat()
-    
+
     # TODO: Add preprocessing steps
     if args.gpu_id is not None:
         with cp.cuda.Device(args.gpu_id):

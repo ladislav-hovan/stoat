@@ -20,25 +20,25 @@ import pandas as pd
 
 from typing import Union
 
-from stoat.config import EXTENSION
+from stoat.config import FORMAT
 
 ### Functions ###
 def save_dataframe(
     df: Union[pd.DataFrame, pd.Series],
     base_filename: str,
-    extension: EXTENSION,
+    format: FORMAT,
 ) -> None:
 
-    if extension == 'tsv':
+    if format == 'tsv':
         df.to_csv(f'{base_filename}.tsv', sep='\t')
-    elif extension == 'feather':
+    elif format == 'feather':
         # Resetting the index will convert to DataFrame
         df.reset_index().to_feather(f'{base_filename}.feather')
-    elif extension == 'parquet':
+    elif format == 'parquet':
         if type(df) == pd.DataFrame:
             df.to_parquet(f'{base_filename}.parquet')
         else:
             df.to_frame().to_parquet(f'{base_filename}.parquet')
     else:
-        raise NotImplementedError(f'Cannot save extension {extension}, '
+        raise NotImplementedError(f'Cannot save format {format}, '
             'not implemented')
