@@ -26,6 +26,7 @@ import pandas.testing as pt
 #    return stoat_obj
 
 
+# TODO: Update tests
 def test_normalise_library_size():
     stoat_obj = Stoat()
     stoat_obj.expression = pd.DataFrame([

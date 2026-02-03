@@ -16,7 +16,7 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
-import spatialdata_plot
+import spatialdata_plot  # Calm down Pylance, we need this
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -129,8 +129,9 @@ class Stoat:
         **kwargs,
     ) -> None:
 
+        st = self.spatial[self.table]
+
         if mt_pct_threshold is not None:
-            st = self.spatial[self.table]
             st.var['mt'] = st.var_names.str.startswith('MT-')
             calculate_qc_metrics(st, qc_vars=['mt'], inplace=True, log1p=False)
             filter = st.obs['pct_counts_mt'] <= mt_pct_threshold

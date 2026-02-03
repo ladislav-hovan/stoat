@@ -21,43 +21,17 @@ import os
 
 import gseapy as gp
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import scanpy as sc
 
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Union
 
 from stoat import Stoat
 from stoat.config import FORMAT, FILE_LIKE
-from stoat.modules.utils import get_layer
+from stoat.modules.utils import get_layer, load_into_df
 
 ### Functions ###
-# TODO: This whole thing should be replaced by StoatAnalysis function
-# def analyse_fully(
-#     stoat_obj: Stoat,
-#     stoat_folder: Path,
-#     indegree_file: Optional[FILE_LIKE],
-#     extension: str,
-#     output_folder: Path,
-# ) -> None:
-#     # Runs the entire pipeline
-#     if not os.path.isdir(output_folder):
-#         os.makedirs(output_folder)
-
-#     describe_expression(stoat_obj)
-
-#     if indegree_file is None:
-#         if len(glob.glob(os.path.join(stoat_folder, 'indegree_*'))) == 0:
-#             calculate_indegrees(stoat_folder, extension)
-#         indegree_file = os.path.join(output_folder,
-#             f'final_indegree.{extension}')
-#         collate_indegrees(stoat_folder, extension, indegree_file)
-
-#     # Clustering on expression - unfiltered/filtered
-#     # Clustering on indegree - unfiltered/filtered
-
-
 def describe_expression(
     stoat_obj: Stoat,
     layer: Optional[str] = None,
@@ -106,25 +80,6 @@ def calculate_degrees(
     # Calculates indegrees and saves them for every STOAT network in
     # the folder
     pass
-
-
-def load_into_df(
-    filename: FILE_LIKE,
-    format: FORMAT,
-) -> pd.DataFrame:
-    # Loads the df from a file with a given format
-    if format == 'tsv':
-        df = pd.read_csv(filename, sep='\t', index_col=0)
-    elif format == 'feather':
-        # Resetting the index will convert to DataFrame
-        df = pd.read_feather(filename).set_index('index')
-        df.index.rename(None, inplace=True)
-    elif format == 'parquet':
-        df = pd.read_parquet(filename)
-    else:
-        print ('Format not recognised')
-
-    return df
 
 
 def save_into_file(

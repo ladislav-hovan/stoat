@@ -20,7 +20,7 @@ import pandas as pd
 
 from typing import Union
 
-from stoat.config import FORMAT
+from stoat.config import FILE_LIKE, FORMAT
 
 ### Functions ###
 def save_dataframe(
@@ -42,3 +42,23 @@ def save_dataframe(
     else:
         raise NotImplementedError(f'Cannot save format {format}, '
             'not implemented')
+
+
+def load_into_df(
+    filename: FILE_LIKE,
+    format: FORMAT,
+) -> pd.DataFrame:
+    # Loads the df from a file with a given format
+    if format == 'tsv':
+        df = pd.read_csv(filename, sep='\t', index_col=0)
+    elif format == 'feather':
+        # Resetting the index will convert to DataFrame
+        df = pd.read_feather(filename).set_index('index')
+        df.index.rename(None, inplace=True)
+    elif format == 'parquet':
+        df = pd.read_parquet(filename)
+    else:
+        raise NotImplementedError(f'Cannot read format {format}, '
+            'not implemented')
+
+    return df

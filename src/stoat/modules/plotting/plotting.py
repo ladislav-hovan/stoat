@@ -855,8 +855,11 @@ def plot_cluster_matching(
     colours[-1] = 'grey'
 
     if fig is None:
-        fig,ax = plt.subplots(n_rows, n_cols, figsize=(3*n_cols, 3.5*n_rows),
-            tight_layout=True)
+        fig,ax = plt.subplots(
+            n_rows, n_cols,
+            figsize=(3 * n_cols, 3.5 * n_rows),
+            tight_layout=True,
+        )
     else:
         ax = fig.subplots(n_rows, n_cols)
 
@@ -872,11 +875,17 @@ def plot_cluster_matching(
         ax_i.set_axis_off()
 
     if legend:
-        custom_lines = ([plt.Line2D([0], [0], color=cm(i / max_clusters), lw=8)
+        custom_lines = (
+            [plt.Line2D([0], [0], color=cm(i / max_clusters), lw=8)
             for i in range(n_clusters)] +
-            [plt.Line2D([0], [0], color='grey', lw=8)])
-        fig.legend(custom_lines, [f'Cluster {i}' for i in range(n_clusters)] +
-            ['Not in cluster'],
-            bbox_to_anchor=(1, 1), loc='upper left', handlelength=0.7)
+            [plt.Line2D([0], [0], color='grey', lw=8)]
+        )
+        fig.legend(
+            custom_lines,
+            [f'Cluster {i}' for i in range(n_clusters)] + ['Not in cluster'],
+            bbox_to_anchor=(1, 1),
+            loc='upper left',
+            handlelength=0.7,
+        )
 
     return (fig, ax)

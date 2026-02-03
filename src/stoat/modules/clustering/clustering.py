@@ -160,7 +160,7 @@ def determine_cluster_labels(
     n_variable: int = 2000,
     exclude_extra: bool = False,
     max_classes: int = 20,
-) -> Tuple[pd.Series, list, int]:
+) -> Tuple[list, int]:
 
     # Determines the clusters in the data and returns the labels to be
     # used for plotting

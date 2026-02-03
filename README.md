@@ -1,3 +1,8 @@
+[![main](https://github.com/ladislav-hovan/stoat/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/ladislav-hovan/stoat/actions/workflows/test.yaml)
+[![devel](https://github.com/ladislav-hovan/stoat/actions/workflows/test.yaml/badge.svg?branch=devel)](https://github.com/ladislav-hovan/stoat/actions/workflows/test.yaml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+
 # STOAT - Spatial TranscriptOmics to Assess Transcriptional regulation
 The STOAT package generates spatially resolved gene regulatory networks
 from spatial transcriptomics data.
@@ -40,29 +45,31 @@ A simple workflow would be as follows:
 ``` python
 # Import the class definition
 from stoat.stoat import Stoat
-# Create the STOAT object with desired settings
-stoat_obj = Stoat(motif_prior='tf_prior.tsv', 
-    ppi_prior='ppi_prior.tsv',
-    output_dir='output/',
-    computing='cpu'
+# Create the STOAT object
+stoat_obj = Stoat()
+# Load the 10x Visium data
+stoat_obj.load_visium_dataset(
+    data_dir='visium_data/,
+    dataset_id='my_experiment',
+    counts_file='raw_feature_bc_matrix.h5',
+    tissue_positions_file='spatial/tissue_positions.csv',
+    scalefactors_file='spatial/scalefactors_json.json',
 )
-# Load the gene expression data
-stoat_obj.load_expression('expression.tsv')
-# Load the position data
-stoat_obj.load_spatial('tissue_positions.csv')
-# Make sure the gene expression data and priors match
-stoat_obj.ensure_compatibility()
-# Filter out deprecated genes
-stoat_obj.filter_genes()
-# Replace the NaN reads with zero
-stoat_obj.remove_nan()
+# Optional filtering steps
+stoat_obj.filter_genes(drop_deprecated=True, min_counts=1)
+stoat_obj.filter_spots(min_counts=5000, mt_pct_threshold=5)
 # Average the expression over nearest neighbours
-stoat_obj.average_expression(kernel='gaussian')
-# Calculate the consensus PANDA network for all the spots
-stoat_obj.calculate_panda()
-# Calculate the spot-specific networks
-stoat_obj.calculate(spot_barcodes=None, save_panda=False, 
-    save_degrees=True, overwrite_old=False)
+stoat_obj.average_expression(kernel='gaussian', sigma=0.4)
+# Assign the spots to regions - by default each spot would be a region
+# This setting would use clustering on averaged expression
+stoat_obj.assign_regions(from_expression=True, layer='averaged')
+# Calculate the region-specific networks
+stoat_obj.calculate_networks(
+    save_dir='networks/',
+    motif_prior='motif_prior.tsv',
+    ppi_prior='ppi_prior.tsv',
+    save_degrees=True,
+)
 ```
 
 
