@@ -50,14 +50,21 @@ class RegionAssigner:
 
         validity = ('in_tissue' if layer is None else 'valid')
         if from_expression:
+            # Default options for clustering
+            clustering_opts = {
+                'validity': validity,
+            }
+            # Allow overwriting them through kwargs
+            clustering_opts.update(**kwargs)
             # Assign regions based on expression clustering
             determine_cluster_labels(
-                self.st,
+                spatial_table=self.st,
                 layer=layer,
-                validity=validity,
                 key_added='region_id',
-                **kwargs,
+                **clustering_opts,
             )
+            id_col = self.st.obs['region_id']
+            id_col = id_col.replace(-1, None)
         elif mapping is not None:
             # Assignment of spots to regions, fills in NaN for missing
             self.st.obs['region_id'] = mapping
