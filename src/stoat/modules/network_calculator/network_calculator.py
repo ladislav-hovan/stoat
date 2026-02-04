@@ -109,7 +109,7 @@ class NetworkCalculator:
                 self.expr_data = self.st.varm[layer]
                 break
             elif layer in self.st.layers:
-                valid = get_validity(self.st.obs)
+                valid = get_validity(self.st)
                 self.expr_data = create_sparse_dataframe(
                     self.st,
                     layer=layer,

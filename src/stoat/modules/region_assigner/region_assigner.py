@@ -48,21 +48,25 @@ class RegionAssigner:
             raise ValueError('Both from_expression and mapping were specified,'
                 ' please provide only one of them.')
 
+        validity = ('in_tissue' if layer is None else 'valid')
         if from_expression:
             # Assign regions based on expression clustering
             determine_cluster_labels(
                 self.st,
                 layer=layer,
-                validity=('in_tissue' if layer is None else 'valid'),
+                validity=validity,
                 key_added='region_id',
                 **kwargs,
             )
         elif mapping is not None:
-            # Assignment of spots to regions
+            # Assignment of spots to regions, fills in NaN for missing
             self.st.obs['region_id'] = mapping
         else:
-            # Every spot is its own region
-            self.st.obs['region_id'] = self.st.obs.index
+            # Every valid spot is its own region
+            self.st.obs['region_id'] = [
+                ind if val else None
+                for ind,val in self.st.obs[validity].items()
+            ]
 
 
     def collapse_expression(
