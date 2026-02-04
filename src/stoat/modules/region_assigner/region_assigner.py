@@ -64,7 +64,7 @@ class RegionAssigner:
                 **clustering_opts,
             )
             id_col = self.st.obs['region_id']
-            id_col = id_col.replace(-1, None)
+            self.st.obs['region_id'] = id_col.replace(-1, None)
         elif mapping is not None:
             # Assignment of spots to regions, fills in NaN for missing
             self.st.obs['region_id'] = mapping
