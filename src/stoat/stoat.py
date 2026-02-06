@@ -19,6 +19,7 @@
 import spatialdata_plot  # Calm down Pylance, we need this
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from functools import wraps
@@ -32,7 +33,7 @@ from typing import Callable, Iterable, Optional, Union
 from stoat.config import FORMAT
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
-from stoat.modules.plotting import (plot_spot_classification,
+from stoat.modules.plotting import (plot_spot_classification, plot_violin,
     process_colour_variable)
 from stoat.modules.region_assigner import RegionAssigner
 from stoat.modules.utils import weigh_by_distance
@@ -102,6 +103,23 @@ class Stoat:
         self.n_neighs = 4
 
     ## Data preprocessing
+    def calculate_qc_metrics(
+        self,
+    ) -> None:
+        
+        st = self.spatial[self.table]
+
+        st.var['mt'] = st.var_names.str.startswith('MT-')
+        st.var['ribo'] = st.var_names.str.startswith(('RPS', 'RPL'))
+
+        calculate_qc_metrics(
+            st,
+            qc_vars=['mt', 'ribo'],
+            inplace=True,
+            log1p=False,
+        )
+
+
     @wraps(filter_genes)
     def filter_genes(
         self,
@@ -132,8 +150,7 @@ class Stoat:
         st = self.spatial[self.table]
 
         if mt_pct_threshold is not None:
-            st.var['mt'] = st.var_names.str.startswith('MT-')
-            calculate_qc_metrics(st, qc_vars=['mt'], inplace=True, log1p=False)
+            self.calculate_qc_metrics()
             filter = st.obs['pct_counts_mt'] <= mt_pct_threshold
             st.obs['in_tissue'] &= filter
 
@@ -156,6 +173,30 @@ class Stoat:
         normalize_total(adata=self.spatial[self.table], *args, **kwargs)
 
     ## Plotting
+    def plot_qc_metrics(
+        self,
+    ) -> np.ndarray[plt.Axes]:
+
+        self.calculate_qc_metrics()
+
+        _,ax = plt.subplots(1, 3, figsize=(18, 6), tight_layout=True)
+
+        col_to_title = {
+            'n_genes_by_counts': 'Number of expressed genes',
+            'total_counts': 'Total number of counts',
+            'pct_counts_mt': 'Mitochondrial gene percentage',
+        }
+
+        for i,(col, title) in enumerate(col_to_title.items()):
+            plot_violin(
+                self.spatial[self.table].obs[col],
+                title=title,
+                ax=ax[i],
+            )
+
+        return ax
+
+
     def plot_spots(
         self,
         coordinate_systems: Optional[str] = None,

@@ -22,6 +22,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from anndata import AnnData
 from math import ceil
@@ -35,6 +36,28 @@ from stoat.config import DIMENSIONS
 from stoat.modules.utils import get_layer
 
 ### Functions ###
+def plot_violin(
+    data: pd.Series,
+    title: Optional[str] = None,
+    ax: Optional[plt.Axes] = None,
+    **kwargs,
+) -> plt.Axes:
+
+    ax = sns.violinplot(
+        data,
+        ax=ax,
+        **kwargs,
+    )
+    ax.set_ylim(0, ax.get_ylim()[1])
+    ax.grid(axis='y')
+    ax.set_xticks([])
+    ax.set_ylabel('Value')
+    if title is not None:
+        ax.set_title(title)
+
+    return ax
+
+
 def process_colour_variable(
     spatial_table: AnnData,
     layer: Optional[str] = None,
