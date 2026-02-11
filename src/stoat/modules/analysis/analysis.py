@@ -29,7 +29,7 @@ from typing import Literal, Optional, Union
 
 from stoat import Stoat
 from stoat.config import FORMAT, FILE_LIKE
-from stoat.modules.utils import get_layer, load_into_df
+from stoat.modules.utils import get_layer, load_into_df, save_df_into_filelike
 
 ### Functions ###
 def describe_expression(
@@ -73,52 +73,77 @@ def describe_expression(
 
 def calculate_degrees(
     stoat_folder: Path,
-    extension: str,
-    which: Literal['in', 'out', 'both'] = 'in',
-    output_file_base: FILE_LIKE = 'final_indegree',
+    format: FORMAT,
+    output_file_base_in: Optional[str] = 'final_indegree',
+    output_file_base_out: Optional[str] = 'final_outdegree',
 ) -> None:
     # Calculates indegrees and saves them for every STOAT network in
     # the folder
-    pass
+    process_in = output_file_base_in is not None
+    process_out = output_file_base_out is not None
+    if not process_in and not process_out:
+        print ('Neither indegrees nor outdegrees were chosen for processing, '
+            'exiting')
+        return
+    # Match the files in the folder and count them
+    to_process = glob.glob(stoat_folder + '/stoat_*.' + format)
+    n_files = len(to_process)
+    print ('Found {} files to process'.format(n_files))
+    in_frames = []
+    out_frames = []
+    # The first threshold on which to report progress (in %)
+    REPORT_EVERY = 5
+    threshold = REPORT_EVERY
+    # Iterate over the files
+    for pos, file in enumerate(to_process):
+        # Load the STOAT network
+        df = load_into_df(file)
+        # Extract the barcode from the filename for output file naming
+        bc = file.split('.')[-2].split('_')[-1]
+        # Calculate and add the indegrees
+        if process_in:
+            indegree = df.sum()
+            in_frames.append(indegree.rename(bc))
+        if process_out:
+            outdegree = df.sum(axis=1)
+            out_frames.append(outdegree.rename(bc))
+        # Report on the progress regularly
+        while (100 * (pos+1) // n_files) >= threshold:
+            print ('{}% complete'.format(threshold))
+            threshold += REPORT_EVERY
+    # Concatenate and save the DataFrames
+    if process_in:
+        in_df = pd.concat(in_frames, axis=1)
+        save_df_into_filelike(in_df, output_file_base_in, format)
+    if process_out:
+        out_df = pd.concat(out_frames, axis=1)
+        save_df_into_filelike(out_df, output_file_base_out, format)
 
 
-def save_into_file(
-    df: Union[pd.DataFrame, pd.Series],
-    filename: FILE_LIKE,
-    format: FORMAT,
-) -> None:
-    # Saves the df into a file with proper extension
-    if format == 'tsv':
-        df.to_csv(filename, sep='\t')
-    elif format == 'feather':
-        # Resetting the index will convert to DataFrame
-        df.reset_index().to_feather(filename)
-    elif format == 'parquet':
-        if type(df) == pd.DataFrame:
-            df.to_parquet(filename)
-        else:
-            df.to_frame().to_parquet(filename)
-    else:
-        print ('Format not recognised')
-
-
-def collate_indegrees(
+def collate_degrees(
     stoat_folder: Path,
     format: FORMAT,
     output_file: FILE_LIKE,
+    base_to_match: str = 'indegree_*',
+    col_name: str = 'Indegrees',
+    overwrite: bool = False,
 ) -> None:
     # Gathers the data from all indegree files in a folder and puts
     # it into a single file
+    if not overwrite and os.path.exists(output_file):
+        print ('The output file already exists! Specify overwrite=True '
+            'if you want it replaced.')
+        return
     id_files = glob.glob(os.path.join(stoat_folder,
-        f'indegree_*.{format}'))
+        f'{base_to_match}.{format}'))
     collection = []
     for file in id_files:
         temp = load_into_df(file, format)
         base_name = file.split('.')[-2].split('_')[-1]
-        temp.rename(columns={'Indegrees': base_name}, inplace=True)
+        temp.rename(columns={col_name: base_name}, inplace=True)
         collection.append(temp.copy())
     df = pd.concat(collection, axis=1)
-    save_into_file(df, output_file, format)
+    save_df_into_filelike(df, output_file, format)
 
 
 def perform_gsea(

@@ -23,22 +23,31 @@ from typing import Union
 from stoat.config import FILE_LIKE, FORMAT
 
 ### Functions ###
-def save_dataframe(
+def save_df_into_file(
     df: Union[pd.DataFrame, pd.Series],
     base_filename: str,
     format: FORMAT,
 ) -> None:
 
+    save_df_into_filelike(df, f'{base_filename}.{format}', format)
+
+
+def save_df_into_filelike(
+    df: Union[pd.DataFrame, pd.Series],
+    filename: FILE_LIKE,
+    format: FORMAT,
+) -> None:
+    # Saves the df into a file with proper extension
     if format == 'tsv':
-        df.to_csv(f'{base_filename}.tsv', sep='\t')
+        df.to_csv(filename, sep='\t')
     elif format == 'feather':
         # Resetting the index will convert to DataFrame
-        df.reset_index().to_feather(f'{base_filename}.feather')
+        df.reset_index().to_feather(filename)
     elif format == 'parquet':
         if type(df) == pd.DataFrame:
-            df.to_parquet(f'{base_filename}.parquet')
+            df.to_parquet(filename)
         else:
-            df.to_frame().to_parquet(f'{base_filename}.parquet')
+            df.to_frame().to_parquet(filename)
     else:
         raise NotImplementedError(f'Cannot save format {format}, '
             'not implemented')

@@ -28,7 +28,7 @@ from scanpy.preprocessing import (calculate_qc_metrics, filter_cells,
     filter_genes, normalize_total)
 from spatialdata import SpatialData
 from spatialdata_io import visium, visium_hd
-from typing import Callable, Iterable, Optional, Union
+from typing import Callable, Iterable, Optional, Tuple, Union
 
 from stoat.config import FORMAT
 from stoat.modules.expression_smoother import ExpressionSmoother
@@ -175,11 +175,12 @@ class Stoat:
     ## Plotting
     def plot_qc_metrics(
         self,
+        figsize: Tuple[float, float] = (18, 6),
     ) -> np.ndarray[plt.Axes]:
 
         self.calculate_qc_metrics()
 
-        _,ax = plt.subplots(1, 3, figsize=(18, 6), tight_layout=True)
+        _,ax = plt.subplots(1, 3, figsize=figsize, tight_layout=True)
 
         col_to_title = {
             'n_genes_by_counts': 'Number of expressed genes',

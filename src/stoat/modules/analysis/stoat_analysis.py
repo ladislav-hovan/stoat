@@ -16,7 +16,11 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
+from pathlib import Path
+
+from stoat.config import FORMAT
 from stoat.modules.clustering import determine_cluster_labels
+from stoat.modules.utils import load_into_df
 from stoat.stoat import Stoat
 
 from typing import Any, Dict, Literal, Optional
@@ -31,23 +35,38 @@ class StoatAnalysis(Stoat):
 
         if stoat_obj is not None:
             self.spatial = stoat_obj.spatial
+            self.table = stoat_obj.table
+            self.coord_type = stoat_obj.coord_type
+            self.n_neighs = stoat_obj.n_neighs
 
-    ### Class methods ###
-    def determine_clusters(
+    ### Methods ###
+    def load_degrees(
         self,
-        on_df: Literal['expr', 'ind', 'both'] = 'both',
-        clust_settings: Dict[Any, Any] = {},
+        degree_file: Path,
+        format: FORMAT,
+        label: str = 'indegree',
     ) -> None:
 
-        if on_df in ['expr', 'both']:
-            classes, ordering, n_classes = determine_cluster_labels(
-                self.expression, self.spatial, self.validity, **clust_settings)
-            self.classes_expr = classes
-            self.ordering_expr = ordering
-            self.n_classes_expr = n_classes
-        if on_df in ['ind', 'both']:
-            classes, ordering, n_classes = determine_cluster_labels(
-                self.indegrees, self.spatial, self.validity, **clust_settings)
-            self.classes_ind = classes
-            self.ordering_ind = ordering
-            self.n_classes_ind = n_classes
+        st = self.spatial[self.table]
+        id_df = load_into_df(degree_file, format).T
+        st.obsm[label] = id_df.reindex(st.obs.index)
+
+
+    # def determine_clusters(
+    #     self,
+    #     on_df: Literal['expr', 'ind', 'both'] = 'both',
+    #     clust_settings: Dict[Any, Any] = {},
+    # ) -> None:
+
+    #     if on_df in ['expr', 'both']:
+    #         classes, ordering, n_classes = determine_cluster_labels(
+    #             self.expression, self.spatial, self.validity, **clust_settings)
+    #         self.classes_expr = classes
+    #         self.ordering_expr = ordering
+    #         self.n_classes_expr = n_classes
+    #     if on_df in ['ind', 'both']:
+    #         classes, ordering, n_classes = determine_cluster_labels(
+    #             self.indegrees, self.spatial, self.validity, **clust_settings)
+    #         self.classes_ind = classes
+    #         self.ordering_ind = ordering
+    #         self.n_classes_ind = n_classes

@@ -28,7 +28,7 @@ from typing import Iterable, Optional, Union
 
 from stoat.config import FORMAT
 from stoat.modules.utils import (create_sparse_dataframe, get_network,
-    get_validity, process_regions, save_dataframe)
+    get_validity, process_regions, save_df_into_file)
 
 ### Class definition ###
 class NetworkCalculator:
@@ -187,14 +187,14 @@ class NetworkCalculator:
             if save_network:
                 print ('Saving the intermediate network to '
                     f'{get_full_name(net_outfile)}.')
-                save_dataframe(net, net_outfile, format)
+                save_df_into_file(net, net_outfile, format)
 
             # Equation for deriving the region-specific network
             stoat_net = (n_regions * (self.basis_network - net) + net)
 
             print ('Saving the STOAT network to '
                 f'{get_full_name(stoat_outfile)}.')
-            save_dataframe(stoat_net, stoat_outfile, format)
+            save_df_into_file(stoat_net, stoat_outfile, format)
 
             if save_degrees:
                 # Names of output files
@@ -203,9 +203,9 @@ class NetworkCalculator:
 
                 print ('Saving the indegrees to '
                     f'{get_full_name(in_outfile)}.')
-                save_dataframe(stoat_net.sum().rename('Indegrees'),
+                save_df_into_file(stoat_net.sum().rename('Indegrees'),
                     in_outfile, format)
                 print ('Saving the outdegrees to '
                     f'{get_full_name(out_outfile)}.')
-                save_dataframe(stoat_net.sum(axis=1).rename('Outdegrees'),
+                save_df_into_file(stoat_net.sum(axis=1).rename('Outdegrees'),
                     out_outfile, format)
