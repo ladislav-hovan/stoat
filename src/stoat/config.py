@@ -34,3 +34,8 @@ DIMENSIONS = pd.DataFrame({
     'width_per_col': [3, 8],
     'height_per_line': [0.3, 0.5],
 }).set_index('type')
+COL_TO_TITLE = {
+    'n_genes_by_counts': 'Number of expressed genes',
+    'total_counts': 'Total number of counts',
+    'pct_counts_mt': 'Mitochondrial gene percentage',
+}

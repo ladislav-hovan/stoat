@@ -28,7 +28,7 @@ from typing import Iterable, Optional, Union
 
 from stoat.config import FORMAT
 from stoat.modules.utils import (create_sparse_dataframe, get_network,
-    get_validity, process_regions, save_df_into_file)
+    get_validity, log1p_transform, process_regions, save_df_into_file)
 
 ### Class definition ###
 class NetworkCalculator:
@@ -81,18 +81,18 @@ class NetworkCalculator:
     def log1p_transform(
         self,
     ) -> None:
-        # Converted to base 2
 
         if 'collapsed' in self.st.varm:
-            self.st.varm['collapsed_log1p'] = log1p(
-                self.st.varm['collapsed']
-            ) / log(2)
+            layer = 'collapsed'
         elif 'averaged' in self.st.layers:
-            self.st.layers['averaged_log1p'] = log1p(
-                self.st.layers['averaged']
-            ) / log(2)
+            layer = 'averaged'
         else:
-            self.st.layers['log1p'] = log1p(self.st.X) / log(2)
+            layer = None
+
+        log1p_transform(
+            self.st,
+            layer=layer,
+        )
 
 
     def calculate_basis(

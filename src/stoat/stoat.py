@@ -18,11 +18,11 @@
 ### Imports ###
 import spatialdata_plot  # Calm down Pylance, we need this
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from functools import wraps
+from matplotlib.pyplot import Axes, Figure
 from pathlib import Path
 from scanpy.preprocessing import (calculate_qc_metrics, filter_cells,
     filter_genes, normalize_total)
@@ -33,10 +33,10 @@ from typing import Callable, Iterable, Optional, Tuple, Union
 from stoat.config import FORMAT
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
-from stoat.modules.plotting import (plot_spot_classification, plot_violin,
-    process_colour_variable)
+from stoat.modules.plotting import (plot_joint_qc_metrics, plot_qc_metrics,
+    plot_spot_classification, process_colour_variable)
 from stoat.modules.region_assigner import RegionAssigner
-from stoat.modules.utils import weigh_by_distance
+from stoat.modules.utils import log1p_transform, weigh_by_distance
 
 ### Class definition ###
 class Stoat:
@@ -47,6 +47,7 @@ class Stoat:
 
         # SpatialData object to be managed by the class
         self._spatial = None
+        # Other properties of the spatial data
         self.table = None
         self.coord_type = None
 
@@ -106,7 +107,7 @@ class Stoat:
     def calculate_qc_metrics(
         self,
     ) -> None:
-        
+
         st = self.spatial[self.table]
 
         st.var['mt'] = st.var_names.str.startswith('MT-')
@@ -172,30 +173,42 @@ class Stoat:
 
         normalize_total(adata=self.spatial[self.table], *args, **kwargs)
 
+
+    def log1p_transform(
+        self,
+        layer: Optional[str] = None,
+    ) -> None:
+
+        return log1p_transform(
+            self.spatial[self.table],
+            layer=layer,
+        )
+
     ## Plotting
     def plot_qc_metrics(
         self,
         figsize: Tuple[float, float] = (18, 6),
-    ) -> np.ndarray[plt.Axes]:
+    ) -> Tuple[Figure, np.ndarray[Axes]]:
 
         self.calculate_qc_metrics()
 
-        _,ax = plt.subplots(1, 3, figsize=figsize, tight_layout=True)
+        return plot_qc_metrics(
+            self.spatial[self.table].obs,
+            figsize=figsize,
+        )
 
-        col_to_title = {
-            'n_genes_by_counts': 'Number of expressed genes',
-            'total_counts': 'Total number of counts',
-            'pct_counts_mt': 'Mitochondrial gene percentage',
-        }
 
-        for i,(col, title) in enumerate(col_to_title.items()):
-            plot_violin(
-                self.spatial[self.table].obs[col],
-                title=title,
-                ax=ax[i],
-            )
+    def plot_joint_qc_metrics(
+        self,
+        figsize: Tuple[float, float] = (6, 6),
+    ) -> Axes:
 
-        return ax
+        self.calculate_qc_metrics()
+
+        return plot_joint_qc_metrics(
+            self.spatial[self.table].obs,
+            figsize=figsize,
+        )
 
 
     def plot_spots(
@@ -203,9 +216,9 @@ class Stoat:
         coordinate_systems: Optional[str] = None,
         layer: Optional[str] = None,
         colour: Optional[str] = None,
-        ax: Optional[plt.Axes] = None,
+        ax: Optional[Axes] = None,
         **kwargs,
-    ) -> plt.Axes:
+    ) -> Axes:
 
         colour = process_colour_variable(
             self.spatial[self.table],
@@ -229,7 +242,7 @@ class Stoat:
         self,
         *args,
         **kwargs,
-    ) -> plt.Axes:
+    ) -> Axes:
 
         ax = plot_spot_classification(
             self.spatial[self.table],

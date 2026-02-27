@@ -16,6 +16,7 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports and settings ###
+import numpy as np
 import pandas as pd
 
 from anndata import AnnData
@@ -58,3 +59,22 @@ def create_sparse_dataframe(
         index=adata.obs_names,
         columns=adata.var_names,
     )
+
+
+def log1p_transform(
+    adata: AnnData,
+    layer: Optional[str] = None,
+) -> None:
+
+    # The division by log(2) serves to convert the base of the logarithm
+    if layer is None:
+        adata.layers['log1p'] = np.log1p(adata.X) / np.log(2)
+    elif layer in adata.varm:
+        adata.varm[f'{layer}_log1p'] = np.log1p(adata.varm[layer]) / np.log(2)
+    elif layer in adata.layers:
+        adata.layers[f'{layer}_log1p'] = np.log1p(
+            adata.layers[layer]
+        ) / np.log(2)
+    else:
+        raise ValueError(f'The specified layer or variable matrix {layer} '
+            'could not be found.')
