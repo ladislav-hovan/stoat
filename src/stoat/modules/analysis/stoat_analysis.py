@@ -55,6 +55,7 @@ class StoatAnalysis(Stoat):
     def cluster_on_degrees(
         self,
         label: str = 'indegree',
+        validity: str = 'valid',
         cluster_label: str = 'clusters_in',
         **kwargs,
     ) -> None:
@@ -62,7 +63,7 @@ class StoatAnalysis(Stoat):
         determine_cluster_labels(
             self.spatial[self.table],
             layer=label,
-            validity='valid',
+            validity=validity,
             key_added=cluster_label,
             **kwargs,
         )

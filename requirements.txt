@@ -1,12 +1,13 @@
-anndata == 0.9.1
-hdbscan == 0.8.29
-matplotlib == 3.8.0
-netZooPy == 0.10.0
-numpy == 1.24.0
-pandas == 2.3.1
-scanpy == 1.11.4
-setuptools == 63.4.1  # Hidden dependency of netZooPy
-spatialdata == 0.4.0
-spatialdata-io == 0.2.0
-spatialdata-plot == 0.2.10
-squidpy == 1.6.5
+anndata == 0.12.10
+hdbscan == 0.8.41
+matplotlib == 3.10.8
+netZooPy == 0.10.8
+numpy == 2.4.3
+ome_zarr == 0.13.0
+pandas == 2.3.3
+scanpy == 1.11.5
+setuptools == 79.0.1  # Hidden dependency of netZooPy
+spatialdata == 0.7.2
+spatialdata-io == 0.6.0
+spatialdata-plot == 0.3.0
+squidpy == 1.8.1

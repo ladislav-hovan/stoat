@@ -29,7 +29,8 @@ from typing import Literal, Optional, Union
 
 from stoat import Stoat
 from stoat.config import FORMAT, FILE_LIKE
-from stoat.modules.utils import get_layer, load_into_df, save_df_into_filelike
+from stoat.modules.utils import (create_sparse_dataframe, get_layer,
+    load_into_df, save_df_into_filelike)
 
 ### Functions ###
 def describe_expression(
@@ -149,6 +150,10 @@ def collate_degrees(
 def perform_gsea(
     anndata: sc.AnnData,
     gene_set: str,
+    validity: str,
+    layer: Optional[str] = None,
+    cluster_col: str = 'clusters',
+    exclude_vals: set = {-1},
     **kwargs,
 ) -> dict:
     # Perform GSEA for every identified cluster in the anndata object
@@ -156,15 +161,21 @@ def perform_gsea(
     # Assumes clusters are present at obs['clusters'], data is log1p
     # transformed and gene names are used instead of Ensembl IDs
     # kwargs are passed to the gsea function
-    for i in range(anndata.obs['clusters'].nunique()):
-        anndata.obs[f'is_{i}'] = (anndata.obs['clusters'] == f'{i}').astype(int)
+
+    valid_vals = sorted(v for v in anndata.obs[cluster_col].unique()
+        if v not in exclude_vals)
+    anndata_filt = anndata[anndata.obs[validity]]
+    for i in valid_vals:
+        anndata_filt.obs[f'is_{i}'] = (anndata_filt.obs[cluster_col] == i
+            ).astype(int)
+    data = anndata_filt.to_df(layer=layer)
     res_all = {}
-    for i in range(anndata.obs['clusters'].nunique()):
-        in_cluster = anndata.obs[f'is_{i}'].copy()
+    for i in valid_vals:
+        in_cluster = anndata_filt.obs[f'is_{i}'].copy()
         in_cluster.sort_values(ascending=False, inplace=True)
         res_all[i] = gp.gsea(
             # row -> genes, column -> samples
-            data=anndata.to_df().reindex(in_cluster.index).T,
+            data=data.reindex(in_cluster.index).T,
             gene_sets=gene_set,
             cls=in_cluster,
             **kwargs,

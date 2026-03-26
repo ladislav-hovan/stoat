@@ -42,3 +42,9 @@ import pandas.testing as pt
 #         [2/1.25, 2/1.25, 1/1.25],
 #         [0, 0, 4]
 #     ]))
+
+
+def test_basic_functionality():
+    stoat_obj = Stoat()
+
+    assert type(stoat_obj) == Stoat

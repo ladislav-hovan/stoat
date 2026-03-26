@@ -1094,6 +1094,32 @@ def plot_gsea_dotplots(
     return (fig, ax)
 
 
+def plot_cluster_matching_single(
+    matching: pd.Series,
+    cluster_id: int,
+    colours: Mapping[int, str],
+    ax: Optional[plt.Axes] = None,
+) -> plt.Axes:
+    # TODO: Check colour type when returned by colourmap
+
+    # TODO: Move magic numbers to config
+    if ax is None:
+        _,ax = plt.subplots(figsize=(3, 3.5))
+
+    ax.pie(
+        matching.values,
+        colors=[colours[k] for k in matching.index],
+    )
+    ax.set_title(
+        f'Cluster {cluster_id}',
+        weight='bold',
+        color='white',
+        backgroundcolor=colours[cluster_id],
+    )
+
+    return ax
+
+
 def plot_cluster_matching(
     first: pd.Series,
     second: pd.Series,
@@ -1103,7 +1129,6 @@ def plot_cluster_matching(
     fig: Optional[plt.Figure] = None,
     legend: bool = True,
 ) -> Tuple[plt.Figure, Union[plt.Axes, np.array]]:
-    # TODO: Make it use distribute_plots
 
     comp = pd.DataFrame([first.rename('first'), second.rename('second')]).T
     matching = comp.groupby('first').value_counts()
@@ -1113,32 +1138,29 @@ def plot_cluster_matching(
     n_clusters_1 = len(first_labels) - int(-1 in first_labels)
     n_clusters_2 = len(second_labels) - int(-1 in second_labels)
     n_clusters = max(n_clusters_1, n_clusters_2)
-    n_rows = ceil(n_clusters_1 / n_cols)
 
     cm = plt.colormaps[cmap]
     colours = {i: cm(i / max_clusters) for i in range(max_clusters)}
     colours[-1] = 'grey'
 
-    if fig is None:
-        fig,ax = plt.subplots(
-            n_rows, n_cols,
-            figsize=(3 * n_cols, 3.5 * n_rows),
-            tight_layout=True,
-        )
-    else:
-        ax = fig.subplots(n_rows, n_cols)
-
+    p_options = [{'colours': colours} for _ in range(n_clusters_1)]
     for i in range(n_clusters_1):
-        ax_i = ax[i // n_cols][i % n_cols]
-        ax_i.pie(matching.loc[i].values,
-            colors=[colours[k] for k in matching.loc[i].index])
-        ax_i.set_title(f'Cluster {i}', weight='bold', color='white',
-            backgroundcolor=colours[i])
-    # Hide the possible extra axes from the plot
-    for i in range(n_clusters_1, n_rows * n_cols):
-        ax_i = ax[i // n_cols][i % n_cols]
-        ax_i.set_axis_off()
+        p_options[i]['matching'] = matching.loc[i]
+        p_options[i]['cluster_id'] = i
 
+    # TODO: Move magic numbers to config
+    fig,ax = distribute_plots(
+        plot_cluster_matching_single,
+        n_plots=n_clusters_1,
+        n_cols=n_cols,
+        n_lines=0,
+        height_per_line=1,
+        overhead=3.5,
+        width_per_col=3,
+        fig=fig,
+        p_options=p_options,
+    )
+    # Add legend if required
     if legend:
         custom_lines = (
             [plt.Line2D([0], [0], color=cm(i / max_clusters), lw=8)

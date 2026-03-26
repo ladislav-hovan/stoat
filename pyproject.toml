@@ -19,18 +19,19 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata",
-    "hdbscan",
-    "matplotlib",
-    "netZooPy",
-    "numpy",
-    "pandas",
-    "scanpy",
-    "setuptools",  # Hidden dependency of netZooPy
-    "spatialdata",
-    "spatialdata-io",
-    "spatialdata-plot",
-    "squidpy",
+    "anndata>=0.12.0,<0.13",
+    "hdbscan>=0.8.0,<0.9",
+    "matplotlib>=3.5.0,<4",
+    "netZooPy>=0.10.0,<0.12",
+    "numpy>=2.2.0,<2.5",
+    "ome_zarr>=0.13.0,<0.14",
+    "pandas>=2.0.0,<3",
+    "scanpy>=1.10.0,<2",
+    "setuptools>=70.0.0,<80.10.0",  # Hidden dependency of netZooPy
+    "spatialdata>=0.7.2,<0.8",
+    "spatialdata-io>=0.6.0,<0.7",
+    "spatialdata-plot>=0.3.0,<0.4",
+    "squidpy>=1.6.0,<2",
 ]
 
 [project.scripts]
@@ -53,8 +54,7 @@ platforms = ["linux-64"]
 [tool.pixi.tasks]
 
 [tool.pixi.dependencies]
-python = "3.10.*"
-setuptools = "*"  # This is required by netZooPy (sambar.py)
+python = "3.11.*"
 
 [tool.pixi.pypi-dependencies]
 netzoopy-stoat = { path = ".", editable = true }
