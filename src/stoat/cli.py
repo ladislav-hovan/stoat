@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Ladislav Hovan <ladislav.hovan@ncmbm.uio.no>
+# Copyright (C) 2026 Ladislav Hovan <ladislav.hovan@ncmbm.uio.no>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -16,7 +16,12 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports and settings ###
-import cupy as cp
+try:
+    import cupy as cp
+except ImportError:
+    has_cupy = False
+else:
+    has_cupy = True
 
 from argparse import (ArgumentDefaultsHelpFormatter, ArgumentParser,
     RawDescriptionHelpFormatter)
@@ -45,7 +50,7 @@ def cli(
     """
 
     DESCRIPTION = """
-    STOAT  Copyright (C) 2025  Ladislav Hovan  <ladislav.hovan@ncmbm.uio.no>
+    STOAT  Copyright (C) 2026  Ladislav Hovan  <ladislav.hovan@ncmbm.uio.no>
     This program comes with ABSOLUTELY NO WARRANTY.
     This is free software, and you are welcome to redistribute it under certain conditions.
     Please refer to the GPL-3.0 license for more details.
@@ -75,6 +80,9 @@ def cli(
 
     # TODO: Add preprocessing steps
     if args.gpu_id is not None:
+        if not has_cupy:
+            raise ModuleNotFoundError('Running on GPU requires cupy, '
+                'which is not present.')
         with cp.cuda.Device(args.gpu_id):
             # TODO: Add options to calculate_networks
             stoat_obj.calculate_networks(computing='gpu')
