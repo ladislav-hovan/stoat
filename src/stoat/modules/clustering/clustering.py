@@ -38,7 +38,7 @@ def normalise_data(
 ) -> AnnData:
 
     # Subset only the valid spots
-    st_f = spatial_table[spatial_table.obs[validity]].copy()
+    st_f = spatial_table[spatial_table.obs[validity].astype(bool)].copy()
     if normalise:
     # Normalise either each gene or each spot
         # TODO: Find a way to keep sparse if possible

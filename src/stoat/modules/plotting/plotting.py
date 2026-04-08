@@ -366,7 +366,7 @@ def plot_spot_classification(
     """
 
     # Use only classes present in valid spots
-    classes_valid = classes.loc[spatial_table.obs[validity]]
+    classes_valid = classes.loc[spatial_table.obs[validity].astype(bool)]
     if ordering is None:
         # Order by frequency
         classes_list = list(classes_valid.value_counts().index)
