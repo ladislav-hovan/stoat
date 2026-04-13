@@ -212,7 +212,7 @@ def plot_spot_expression(
     title: Optional[str] = None,
     hide_overflow: bool = True,
     overflow_threshold: float = 0.01,
-    overflow_colour: str = 'navy',
+    overflow_colour: Any = 'navy',
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
     """
@@ -247,7 +247,7 @@ def plot_spot_expression(
     overflow_threshold : float, optional
         Proportion of top values that should be coloured differently,
         only used if hide_overflow is True, by default 0.01
-    overflow_colour : str, optional
+    overflow_colour : Any, optional
         Colour to be used for overflowing spots, only used if
         hide_overflow is True, by default 'navy'
     ax : plt.Axes, optional
@@ -439,7 +439,7 @@ def add_circle(
     y: float,
     ax: Optional[plt.Axes] = None,
     radius: float = 1.5,
-    colour: str = 'C3',
+    colour: Any = 'C3',
     label: Optional[str] = None,
     fontsize: int = 25,
 ) -> None:
@@ -458,7 +458,7 @@ def add_circle(
         by default None
     radius : float, optional
         Radius of the circle, by default 1.5
-    colour : str, optional
+    colour : Any, optional
         Colour of the circle, by default 'C3'
     label : Optional[str], optional
         Label inside the circle or None for no label, by default None
@@ -515,8 +515,8 @@ def generate_cmap_and_colours(
     unclassified_label: Any = -1,
     hide_overflow: bool = True,
     overflow_threshold: float = 0.01,
-    overflow_colour: str = 'navy',
-    unclassified_colour: str = 'darkgray',
+    overflow_colour: Any = 'navy',
+    unclassified_colour: Any = 'darkgray',
 ) -> Tuple[Colormap, Normalize, pd.Series]:
     """
     Generates the colourmap, the normalisation function and the
@@ -540,10 +540,10 @@ def generate_cmap_and_colours(
     overflow_threshold : float, optional
         Proportion of top values that should be coloured differently,
         only used if hide_overflow is True, by default 0.01
-    overflow_colour : str, optional
+    overflow_colour : Any, optional
         Colour to be used for overflowing spots, only used if
         hide_overflow is True, by default 'navy'
-    unclassified_colour : str, optional
+    unclassified_colour : Any, optional
         Colour to be assigned to unclassified spots,
         by default 'darkgray'
 
@@ -583,8 +583,8 @@ def plot_hexagons(
     colours: pd.Series,
     title: Optional[str] = None,
     figsize: Tuple[float, float] = (16, 16),
-    edge_colour: str = 'gray',
-    invalid_colour: str = 'gray',
+    edge_colour: Any = 'gray',
+    invalid_colour: Any = 'gray',
     ax: Optional[plt.Axes] = None,
 ) -> Optional[plt.Axes]:
     """
@@ -607,9 +607,9 @@ def plot_hexagons(
     figsize : Tuple[float, float], optional
         Size of the Figure if new Axes are being generated,
         by default (16, 16)
-    edge_colour : str, optional
+    edge_colour : Any, optional
         Colour of the hexagon edges, by default 'gray'
-    invalid_colour : str, optional
+    invalid_colour : Any, optional
         Colour of the invalid spots, by default 'gray'
     ax : plt.Axes, optional
         Axes to plot on or None to generate new ones, by default None
@@ -899,8 +899,8 @@ def plot_deg_heatmap(
     title: str = '',
     cmap: str = 'viridis',
     n_cluster_spots: Optional[int] = None,
-    cluster_colour: str = 'red',
-    background_colour: str = 'lightgrey',
+    cluster_colour: Any = 'red',
+    background_colour: Any = 'lightgrey',
     show_every: int = 1,
 ) -> plt.Axes:
 
@@ -1097,19 +1097,42 @@ def plot_gsea_dotplots(
 def plot_cluster_matching_single(
     matching: pd.Series,
     cluster_id: int,
-    colours: Mapping[int, str],
+    colours: Mapping[int, Any],
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
-    # TODO: Check colour type when returned by colourmap
+    """
+    Plots a pie chart showing how a given cluster maps onto clusters
+    in a different clustering.
 
-    # TODO: Move magic numbers to config
+    Parameters
+    ----------
+    matching : pd.Series
+        Series containing the cluster IDs and counts in the second
+        clustering
+    cluster_id : int
+        Cluster ID of the current cluster in the first clustering
+    colours : Mapping[int, Any]
+        Mapping of cluster IDs to colours, assumed same in both
+        clusterings
+    ax : Optional[plt.Axes], optional
+        Axes to plot on or None to generate new ones, by default None
+
+    Returns
+    -------
+    plt.Axes
+        Axes of the resulting plot
+    """
+
+    # Create appropriately sized Axes if required
+    dims = DIMENSIONS.loc['match']
     if ax is None:
-        _,ax = plt.subplots(figsize=(3, 3.5))
-
+        _,ax = plt.subplots(figsize=(dims['width_per_col'], dims['overhead']))
+    # Create the pie chart
     ax.pie(
         matching.values,
         colors=[colours[k] for k in matching.index],
     )
+    # Set the title with background colour
     ax.set_title(
         f'Cluster {cluster_id}',
         weight='bold',
@@ -1126,37 +1149,73 @@ def plot_cluster_matching(
     n_cols: int = 4,
     cmap: str = 'tab20',
     max_clusters: int = 20,
-    fig: Optional[plt.Figure] = None,
     legend: bool = True,
+    unclassified_label: Any = -1,
+    unclassified_colour: str = 'darkgray',
+    fig: Optional[plt.Figure] = None,
 ) -> Tuple[plt.Figure, Union[plt.Axes, np.array]]:
+    """
+    Plots an array of pie charts showing the correspondence between
+    different clusterings.
 
+    Parameters
+    ----------
+    first : pd.Series
+        _description_
+    second : pd.Series
+        _description_
+    n_cols : int, optional
+        _description_, by default 4
+    cmap : str, optional
+        _description_, by default 'tab20'
+    max_clusters : int, optional
+        _description_, by default 20
+    legend : bool, optional
+        _description_, by default True
+    unclassified_label : Any, optional
+        _description_, by default -1
+    unclassified_colour : str, optional,
+        _description_, by default 'darkgray
+    fig : Optional[plt.Figure], optional
+        _description_, by default None
+
+    Returns
+    -------
+    Tuple[plt.Figure, Union[plt.Axes, np.array]]
+        Figure and Axes or array of Axes of the resulting plot
+    """
+
+    # Merge them into one DataFrame
     comp = pd.DataFrame([first.rename('first'), second.rename('second')]).T
+    # Determine the matching clusters
     matching = comp.groupby('first').value_counts()
+    # Figure out the unique labels in the two Series
     first_labels = comp['first'].unique()
     second_labels = comp['second'].unique()
-
-    n_clusters_1 = len(first_labels) - int(-1 in first_labels)
-    n_clusters_2 = len(second_labels) - int(-1 in second_labels)
+    # Figure out the higher number of clusters to be used
+    n_clusters_1 = len(first_labels) - int(unclassified_label in first_labels)
+    n_clusters_2 = (len(second_labels) -
+        int(unclassified_label in second_labels))
     n_clusters = max(n_clusters_1, n_clusters_2)
-
+    # Figure out the colours for the clusters from the colourmap
     cm = plt.colormaps[cmap]
     colours = {i: cm(i / max_clusters) for i in range(max_clusters)}
-    colours[-1] = 'grey'
-
+    colours[unclassified_label] = unclassified_colour
+    # Set plotting options for the individual plots
     p_options = [{'colours': colours} for _ in range(n_clusters_1)]
     for i in range(n_clusters_1):
         p_options[i]['matching'] = matching.loc[i]
         p_options[i]['cluster_id'] = i
-
-    # TODO: Move magic numbers to config
+    # Distribute the plots
+    dims = DIMENSIONS.loc['match']
     fig,ax = distribute_plots(
         plot_cluster_matching_single,
         n_plots=n_clusters_1,
         n_cols=n_cols,
         n_lines=0,
-        height_per_line=1,
-        overhead=3.5,
-        width_per_col=3,
+        height_per_line=dims['height_per_line'],
+        overhead=dims['overhead'],
+        width_per_col=dims['width_per_col'],
         fig=fig,
         p_options=p_options,
     )

@@ -29,10 +29,10 @@ FORMAT = Literal['tsv', 'feather', 'parquet']
 FILE_LIKE = Union[bytes, Path]
 # Plotting defaults
 DIMENSIONS = pd.DataFrame({
-    'type': ['deg', 'gsea'],
-    'overhead': [2.5, 2.5],
-    'width_per_col': [3, 8],
-    'height_per_line': [0.3, 0.5],
+    'type': ['deg', 'gsea', 'match'],
+    'overhead': [2.5, 2.5, 3.5],
+    'width_per_col': [3, 8, 3],
+    'height_per_line': [0.3, 0.5, 1],
 }).set_index('type')
 COL_TO_TITLE = {
     'n_genes_by_counts': 'Number of expressed genes',
