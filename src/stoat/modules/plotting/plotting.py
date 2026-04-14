@@ -25,6 +25,7 @@ import pandas as pd
 import seaborn as sns
 
 from anndata import AnnData
+from gseapy import GSEA
 from math import ceil
 from matplotlib.colors import Colormap, Normalize
 from matplotlib.patches import Circle, RegularPolygon
@@ -63,6 +64,7 @@ def plot_violin(
         Axes of the resulting plot
     """
 
+    # Create the violinplot
     ax = sns.violinplot(
         data,
         ax=ax,
@@ -82,6 +84,7 @@ def plot_violin(
 
 def plot_qc_metrics(
     observables: pd.DataFrame,
+    fig: Optional[plt.Figure] = None,
     figsize: Tuple[float, float] = (18, 6),
 ) -> Tuple[plt.Figure, np.ndarray[plt.Axes]]:
     """
@@ -93,8 +96,10 @@ def plot_qc_metrics(
     ----------
     observables : pd.DataFrame
         DataFrame containing the QC metrics
+    fig : Optional[plt.Figure], optional
+        Figure to be used or None to create a new one, by default None
     figsize : Tuple[float, float], optional
-        Dimensions of the plot, by default (18, 6)
+        Size of the figure if it is to be created, by default (18, 6)
 
     Returns
     -------
@@ -102,7 +107,14 @@ def plot_qc_metrics(
         Figure and array of Axes of the resulting plot
     """
 
-    fig,ax = plt.subplots(1, 3, figsize=figsize, tight_layout=True)
+    # Create the figure if necessary
+    if fig is None:
+        fig,ax = plt.subplots(1, 3, figsize=figsize, tight_layout=True)
+    else:
+        for i in range(1, 4):
+            fig.add_subplot(1, 3, i)
+        ax = fig.get_axes()
+        fig.tight_layout()
     # Plot the desired QC metrics: number of genes, total counts, MT gene %
     for i,(col, title) in enumerate(COL_TO_TITLE.items()):
         plot_violin(
@@ -116,6 +128,7 @@ def plot_qc_metrics(
 
 def plot_joint_qc_metrics(
     observables: pd.DataFrame,
+    ax: Optional[plt.Axes] = None,
     figsize: Tuple[float, float] = (6, 6),
 ) -> plt.Axes:
     """
@@ -127,8 +140,10 @@ def plot_joint_qc_metrics(
     ----------
     observables : pd.DataFrame
         DataFrame containing the QC metrics
+    ax : Optional[plt.Axes], optional
+        Axes to plot on or None to generate new ones, by default None
     figsize : Tuple[float, float], optional
-        Dimensions of the plot, by default (6, 6)
+        Size of the figure if it is to be created, by default (6, 6)
 
     Returns
     -------
@@ -136,10 +151,12 @@ def plot_joint_qc_metrics(
         Axes of the resulting plot
     """
 
-    _,ax = plt.subplots(1, 1, figsize=figsize, tight_layout=True)
-
+    # Create the Axes if necessary
+    if ax is None:
+        _,ax = plt.subplots(1, 1, figsize=figsize, tight_layout=True)
+    # Column names and appropriate labels
     y_col,x_col,hue_col = COL_TO_TITLE.keys()
-
+    # Generate the plot
     sns.scatterplot(
         observables,
         x=x_col,
@@ -148,6 +165,7 @@ def plot_joint_qc_metrics(
         alpha=0.8,
         ax=ax,
     )
+    # Set the desired labels
     ax.set_xlabel(COL_TO_TITLE[x_col])
     ax.set_ylabel(COL_TO_TITLE[y_col])
     ax.legend(title=COL_TO_TITLE[hue_col])
@@ -423,9 +441,8 @@ def plot_spot_classification(
             )
             ax.add_patch(hex_spot)
         # Create the legend
-        # TODO: Remove magic numbers to make it scalable
         ax.legend(
-            fontsize=16,
+            fontsize=ax.get_window_extent().height / 100,
             loc='upper left',
             bbox_to_anchor=(0, 0),
             handlelength=0.7,
@@ -531,7 +548,7 @@ def generate_cmap_and_colours(
     cm_limits : Tuple[Optional[float], Optional[float]], optional
         Upper and lower limits of the colourmap, inferred from
         the data if None, by default None
-    unclassified_label: Any, optional
+    unclassified_label : Any, optional
         Label indicating the spot is not classified, by default -1
     hide_overflow : bool, optional
         Whether to restrict the range to the bottom (1-X) proportion
@@ -582,7 +599,6 @@ def plot_hexagons(
     validity: pd.Series,
     colours: pd.Series,
     title: Optional[str] = None,
-    figsize: Tuple[float, float] = (16, 16),
     edge_colour: Any = 'gray',
     invalid_colour: Any = 'gray',
     ax: Optional[plt.Axes] = None,
@@ -604,9 +620,6 @@ def plot_hexagons(
         Matplotlib colourmap to be used
     title : str, optional
         Title for the figure or None for no title, by default None
-    figsize : Tuple[float, float], optional
-        Size of the Figure if new Axes are being generated,
-        by default (16, 16)
     edge_colour : Any, optional
         Colour of the hexagon edges, by default 'gray'
     invalid_colour : Any, optional
@@ -625,9 +638,9 @@ def plot_hexagons(
         spatial_table.obs['array_row'],
         spatial_table.obs['array_col'],
     )
-    # Create a figure
+    # Create Axes with a default size if needed
     if ax is None:
-        _,ax = plt.subplots(1, figsize=figsize, tight_layout=True)
+        _,ax = plt.subplots(1, figsize=(16, 16), tight_layout=True)
     ax.set_aspect('equal')
     ax.set_axis_off()
     # Create a DataFrame to ensure the Series align by index
@@ -892,37 +905,95 @@ def plot_deg_data(
     return (fig, ax)
 
 
-def plot_deg_heatmap(
-    data: pd.DataFrame,
-    figsize: Tuple[int, int] = (6,5),
-    percentile: Tuple[int, int] = (2,98),
-    title: str = '',
+def plot_leading_edge_heatmap(
+    gsea_data: GSEA,
+    term_index: int = 0,
+    term_name: Optional[str] = None,
+    normalise_values: bool = False,
+    percentile: Tuple[int, int] = (2, 98),
     cmap: str = 'viridis',
-    n_cluster_spots: Optional[int] = None,
     cluster_colour: Any = 'red',
-    background_colour: Any = 'lightgrey',
+    background_colour: Any = 'lightgray',
     show_every: int = 1,
+    ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
+    """
+    Plots a heatmap of leading edge genes for a given term based on
+    the provided GSEA results.
 
-    df = data.iloc[::-1]
+    Parameters
+    ----------
+    gsea_data : GSEA
+        GSEA object provided by gseapy module
+    term_index : int, optional
+        Index of the term to display the heatmap for, by default 0
+    term_name : Optional[str], optional
+        Name of the term to display the heatmap for or None to not use
+        the name for specifying it, if specified takes precedence over
+        term_index, by default None
+    normalise_values : bool, optional
+        Whether to normalise the values for every gene by z-scoring,
+        by default False
+    percentile : Tuple[int, int], optional
+        Percentile range for normalisation of the colourmap,
+        by default (2, 98)
+    cmap : str, optional
+        Colourmap for the heatmap, by default 'viridis'
+    cluster_colour : Any, optional
+        Colour signifying the cluster of interest on the classification
+        bar, by default 'red'
+    background_colour : Any, optional
+        Colour signifying the background on the classification bar,
+        by default 'lightgray'
+    show_every : int, optional
+        Spacing for displaying gene names, can be increased to prevent
+        overcrowding of the y axis, by default 1
+    ax : Optional[plt.Axes], optional
+        Axes to plot on or None to generate new ones, by default None
 
+    Returns
+    -------
+    plt.Axes
+        Axes of the resulting plot
+    """
+
+    # Process the input into a DataFrame
+    results = gsea_data.res2d
+    heatmat = gsea_data.heatmat
+    if term_name is not None:
+        term_index = results[results['Term'] == term_name].idxmin()
+    genes = results['Lead_genes'].iloc[term_index].split(";")
+    df = heatmat.loc[genes[::-1]]
+    # Normalise values if requested
+    if normalise_values:
+        df = df.subtract(df.mean(axis=1), axis=0).divide(
+            df.std(axis=1), axis=0).fillna(0)
+    # Establish the percentile range for normalisation
     vmin = np.percentile(df, percentile[0])
     vmax = np.percentile(df, percentile[1])
     norm = Normalize(vmin=vmin, vmax=vmax)
-
-    _,ax = plt.subplots(figsize=figsize)
+    # Create the Axes if necessary
+    if ax is None:
+        _,ax = plt.subplots(figsize=(6, 5))
+    ax_height = ax.get_window_extent().height
+    ax_width = ax.get_window_extent().width
+    # Actual plotting
     pcm = ax.pcolormesh(df.values, rasterized=True, norm=norm, cmap=cmap)
-    ax.set_title(title, size=18)
-
-    if n_cluster_spots is not None:
-        ax.plot([0, n_cluster_spots], [-1,-1], color=cluster_colour, lw=3)
-        ax.plot([n_cluster_spots, len(df.columns)], [-1,-1],
-            color=background_colour, lw=3)
-
-    ax.set_yticks([i+0.5 for i in range(0, len(df), show_every)],
+    ax.set_title(results.iloc[term_index]['Term'],
+        size=ax_width / 30)
+    # Classification bar
+    CLASSIFICATION_Y = -0.1
+    coords = [CLASSIFICATION_Y] * 2
+    n_cluster_spots = gsea_data.classes.sum()
+    ax.plot([0, n_cluster_spots], coords, color=cluster_colour,
+        lw=ax_height / 150)
+    ax.plot([n_cluster_spots, len(df.columns)], coords,
+        color=background_colour, lw=ax_height / 150)
+    # Adjust the gene names dispalyed
+    ax.set_yticks([i + 0.5 for i in range(0, len(df), show_every)],
         df.index[::show_every])
     ax.yaxis.set_tick_params('major', left=False)
-
+    # Colourbar
     cb = plt.colorbar(mappable=pcm, ax=ax, shrink=0.5, aspect=10)
     cb.ax.yaxis.set_tick_params(
         color='white', direction='in', left=True, right=True,
@@ -930,10 +1001,14 @@ def plot_deg_heatmap(
     cb_locator = MaxNLocator(nbins=5, integer=True)
     cb.locator = cb_locator
     cb.update_ticks()
-    cb.ax.set_title('N. E.', loc='left', fontweight='bold')
+    if normalise_values:
+        cb_title = 'z(NE)'
+    else:
+        cb_title = 'N. E.'
+    cb.ax.set_title(cb_title, loc='left', fontweight='bold')
     for spine in cb.ax.spines.values():
         spine.set_visible(False)
-
+    # Turn off unnecessary parts of the plot
     ax.set_xticks([])
     for side in ['top', 'right', 'left', 'bottom']:
         ax.spines[side].set_visible(False)
@@ -1161,23 +1236,29 @@ def plot_cluster_matching(
     Parameters
     ----------
     first : pd.Series
-        _description_
+        Series containing the cluster annotations in the
+        first clustering
     second : pd.Series
-        _description_
+        Series containing the cluster annotations in the
+        second clustering
     n_cols : int, optional
-        _description_, by default 4
+        Number of columns to distribute the plots into, by default 4
     cmap : str, optional
-        _description_, by default 'tab20'
+        Colourmap for cluster colour assignment, by default 'tab20'
     max_clusters : int, optional
-        _description_, by default 20
+        Maximum number of clusters to be considered for colour
+        generation, useful to make plots with different
+        number of clusters consistent, should probably correspond to
+        the number of colours on the colourmap, by default 20
     legend : bool, optional
-        _description_, by default True
+        Whether to plot the legend, by default True
     unclassified_label : Any, optional
-        _description_, by default -1
+        Label indicating the spot is not classified, by default -1
     unclassified_colour : str, optional,
-        _description_, by default 'darkgray
+        Colour to be assigned to unclassified spots,
+        by default 'darkgray'
     fig : Optional[plt.Figure], optional
-        _description_, by default None
+        Figure to be used or None to create a new one, by default None
 
     Returns
     -------
