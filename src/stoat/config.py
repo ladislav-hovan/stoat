@@ -39,3 +39,9 @@ COL_TO_TITLE = {
     'total_counts': 'Total number of counts',
     'pct_counts_mt': 'Mitochondrial gene percentage',
 }
+P_VAL_MAPPING = {
+    'Adjusted P-value': 'FDR',
+    'P-value': 'Pval',
+    'NOM p-val': 'Pval',
+    'FDR q-val': 'FDR',
+}

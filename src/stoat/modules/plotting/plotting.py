@@ -33,7 +33,7 @@ from matplotlib.ticker import MaxNLocator
 from typing import (Any, Callable, Iterable, Mapping, Optional, Sequence,
     Tuple, Union)
 
-from stoat.config import COL_TO_TITLE, DIMENSIONS
+from stoat.config import COL_TO_TITLE, DIMENSIONS, P_VAL_MAPPING
 from stoat.modules.utils import get_layer
 
 ### Functions ###
@@ -1026,59 +1026,121 @@ def plot_gsea_dotplot(
     title: str = '',
     cmap: str = 'viridis_r',
     dot_scale: float = 5.0,
+    percentile: Tuple[int, int] = (2, 98),
+    max_words: int = 0,
     ax: Optional[plt.Axes] = None,
     figsize: Tuple[float, float] = (4, 6),
 ) -> plt.Axes:
-    # TODO: Fix this whole thing, figure out why we had to comment so much out
+    """
+    Plots a dotplot from the provided GSEA results. The size of the dots
+    is scaled by the percentage of genes present and the colouring comes
+    from a selected column, typically p or q value.
 
-    # df = df.loc[df[column] <= threshold]
-    # if len(df) == 0:
-    #     msg = f'No enriched terms with {column} <= {threshold}'
-    #     if ax is None:
-    #         raise ValueError(msg)
-    #     else:
-    #         ax.text(0.5, 0.5, msg, ha='center', va='center', fontsize=14,
-    #             transform=ax.transAxes)
-    #         ax.set_axis_off()
-    #         return
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with the GSEA results, provided by the res2d
+        attribute of the GSEA object
+    column : str, optional
+        Column to be used for colouring and ordering,
+        by default 'FDR q-val'
+    n_terms : int, optional
+        Number of terms to show, by default 10
+    threshold : float, optional
+        Threshold (maximum value) on the column to be included,
+        by default 0.05
+    x : str, optional
+        Value to put on the X axis, by default 'NES'
+    y : str, optional
+        Value to put on the Y axis, by default 'Term'
+    title : str, optional
+        Title of the plot, by default ''
+    cmap : str, optional
+        Colourmap to assign colours from, by default 'viridis_r'
+    dot_scale : float, optional
+        Scaling for the size of the dots, by default 5.0
+    percentile : Tuple[int, int], optional
+        Percentiles for adjusting the colourmap scale,
+        by default (2, 98)
+    max_words : int, optional
+        Maximum number of words to show on Y axis labels, 0 means show
+        all of them, by default 0
+    ax : Optional[plt.Axes], optional
+        Axes to plot on or None to create new ones, by default None
+    figsize : Tuple[float, float], optional
+        Dimensions of the new Axes, only used if ax is None,
+        by default (4, 6)
 
-    colnd = {'Adjusted P-value': 'FDR', 'P-value': 'Pval', 'NOM p-val': 'Pval',
-        'FDR q-val': 'FDR'}
-    if column in colnd:
-        df = df.sort_values(by=column)
-        df[column] = df[column].replace(0, None).bfill()
-        df['p_inv'] = np.log10(1 / df[column].astype(float))
+    Returns
+    -------
+    plt.Axes
+        Axes of the resulting plot
+
+    Raises
+    ------
+    ValueError
+        If ax is None and no terms pass the threshold
+    """
+
+    # Filter out only terms that pass the threshold
+    df_filt = df.loc[df[column] <= threshold].copy()
+    if len(df_filt) == 0:
+        msg = f'No enriched terms with {column} <= {threshold}'
+        if ax is None:
+            # Just a single plot - raise the error
+            raise ValueError(msg)
+        else:
+            # Part of a larger plot - just display the message
+            ax.text(0.5, 0.5, msg, ha='center', va='center', fontsize=14,
+                transform=ax.transAxes)
+            ax.set_axis_off()
+            return
+    # Check if column looks like a p-value
+    if column in P_VAL_MAPPING:
+        # Get rid of zero values
+        df_filt = df_filt.sort_values(by=column)
+        df_filt[column] = df_filt[column].astype(float).replace(
+            0, np.nan).bfill()
+        # Create a -log10(p) column and use that
+        df_filt['p_inv'] = np.log10(1 / df_filt[column].astype(float))
         colname = 'p_inv'
-        cbar_title = r'$\log_{10} \frac{1}{ ' + colnd[column] + ' }$'
+        cbar_title = r'$-\log_{10} ' + P_VAL_MAPPING[column] + '$'
     else:
         colname = column
         cbar_title = column
-
-    # df = df.sort_values(by=colname).tail(n_terms)
-    df = df.head(n_terms)[::-1]
-
-    if df.columns.isin(['Overlap', 'Tag %']).any():
-        ol = df.columns[df.columns.isin(['Overlap', 'Tag %'])]
-        temp = df[ol].squeeze(axis=1).str.split('/', expand=True).astype(int)
-        df['Hits_ratio'] = temp.iloc[:, 0] / temp.iloc[:, 1]
+    # Sort by the column - use highest values
+    # Most significant or highest enrichment
+    df_filt['abs_x'] = df_filt[x].abs()
+    df_filt = df_filt.sort_values(by=[colname, 'abs_x']).tail(n_terms)
+    # Shorten the y labels if desired
+    if max_words > 0:
+        words = df_filt[y].str.split()
+        df_filt[y] = words.apply(lambda x: ' '.join(x[:max_words]) +
+            ('...' if len(x) > max_words else ''))
+    # Calculate the hits ratio if the information is available
+    if df_filt.columns.isin(['Overlap', 'Tag %']).any():
+        ol = df_filt.columns[df_filt.columns.isin(['Overlap', 'Tag %'])]
+        temp = df_filt[ol].squeeze(axis=1).str.split(
+            '/', expand=True).astype(int)
+        df_filt['Hits_ratio'] = temp.iloc[:, 0] / temp.iloc[:, 1]
     else:
-        df['Hits_ratio'] = 1.0
-
-    df['area'] = (df['Hits_ratio'] * dot_scale *
+        df_filt['Hits_ratio'] = 1.0
+    # Define the area based on the hits ratio
+    df_filt['area'] = (df_filt['Hits_ratio'] * dot_scale *
         plt.rcParams['lines.markersize']).pow(2)
-
+    # Create the Axes if necessary
     if ax is None:
         _,ax = plt.subplots(figsize=figsize)
     fig = ax.get_figure()
-
-    colmap = df[colname].astype(int)
-    vmin = np.percentile(colmap, 2)
-    vmax = np.percentile(colmap, 98)
-
+    # Set the limits for colourmap data range
+    colmap = df_filt[colname]
+    vmin = np.percentile(colmap, percentile[0])
+    vmax = np.percentile(colmap, percentile[1])
+    # Create the scatterplot
     sc = ax.scatter(
         x=x,
         y=y,
-        data=df,
+        data=df_filt,
         s='area',
         edgecolors='none',
         c=colname,
@@ -1087,46 +1149,49 @@ def plot_gsea_dotplot(
         vmax=vmax,
         zorder=2,
     )
-    ax.set_xlabel(x, fontsize=14, fontweight='bold')
-    ax.xaxis.set_tick_params(labelsize=14)
-    ax.yaxis.set_tick_params(labelsize=16)
+    # Adjust margins and labels
+    ax_height = ax.get_window_extent().height
+    ax.set_xlabel(x, fontsize=ax_height / 35, fontweight='bold')
+    ax.xaxis.set_tick_params(labelsize=ax_height / 35)
+    ax.yaxis.set_tick_params(labelsize=ax_height / 30)
     ax.set_axisbelow(True)
     ax.grid(axis='y', zorder=-1)
     ax.margins(x=0.25)
-    ax.set_ylim(-1, len(df))
-
-    # handles, labels = sc.legend_elements(
-    #     prop='sizes',
-    #     num=3,
-    #     fmt='{x:.2f}',
-    #     color='gray',
-    #     func=lambda s: (np.sqrt(s) / plt.rcParams['lines.markersize'] /
-    #         dot_scale),
-    # )
-    # ax.legend(
-    #     handles,
-    #     labels,
-    #     title='% Genes\nin set',
-    #     bbox_to_anchor=(1.02, 0.9),
-    #     loc='upper left',
-    #     frameon=False,
-    #     labelspacing=2,
-    # )
-    ax.set_title(title, fontsize=20, fontweight='bold')
-
-    # cbar = fig.colorbar(
-    #     sc,
-    #     shrink=0.25,
-    #     aspect=10,
-    #     anchor=(0.0, 0.2),
-    #     location='right',
-    # )
-    # cbar.ax.yaxis.set_tick_params(
-    #     color='white', direction='in', left=True, right=True
-    # )
-    # cbar.ax.set_title(cbar_title, loc='left', fontweight='bold')
-    # for _, spine in cbar.ax.spines.items():
-    #     spine.set_visible(False)
+    ax.set_ylim(-1, len(df_filt))
+    # Set the title
+    ax.set_title(title, fontsize=ax_height / 25, fontweight='bold')
+    # Add the markersize legend for genes in set
+    handles, labels = sc.legend_elements(
+        prop='sizes',
+        num=3,
+        fmt='{x:.2f}',
+        color='gray',
+        func=lambda s: (np.sqrt(s) / plt.rcParams['lines.markersize'] /
+            dot_scale),
+    )
+    ax.legend(
+        handles,
+        labels,
+        title='% Genes\nin set',
+        bbox_to_anchor=(1.02, 0.9),
+        loc='upper left',
+        frameon=False,
+        labelspacing=2,
+    )
+    # Setup the colourbar
+    cbar = fig.colorbar(
+        sc,
+        shrink=0.25,
+        aspect=10,
+        anchor=(0.0, 0.2),
+        location='right',
+    )
+    cbar.ax.yaxis.set_tick_params(
+        color='white', direction='in', left=True, right=True
+    )
+    cbar.ax.set_title(cbar_title, loc='left', fontweight='bold')
+    for _, spine in cbar.ax.spines.items():
+        spine.set_visible(False)
 
     return ax
 
@@ -1141,19 +1206,65 @@ def plot_gsea_dotplots(
     y: str = 'Term',
     cmap: str = 'viridis_r',
     dot_scale: float = 5.0,
+    percentile: Tuple[int, int] = (2, 98),
+    max_words: int = 0,
     fig: Optional[plt.Figure] = None,
 ) -> Tuple[plt.Figure, Union[plt.Axes, np.array]]:
+    """
+    Plots an array of dotplots showing the GSEA results for different
+    clusters.
 
+    Parameters
+    ----------
+    data : Mapping[int, pd.DataFrame]
+        Mapping of cluster IDs to GSEA results corresponding to the
+        clusters, in the format expected by plot_gsea_dotplot()
+    n_cols : int, optional
+        Number of columns to distribute the plots into, by default 3
+    column : str, optional
+        Column to be used for colouring and ordering,
+        by default 'FDR q-val'
+    n_terms : int, optional
+        Number of terms to show, by default 10
+    threshold : float, optional
+        Threshold (maximum value) on the column to be included,
+        by default 0.05
+    x : str, optional
+        Value to put on the X axis, by default 'NES'
+    y : str, optional
+        Value to put on the Y axis, by default 'Term'
+    cmap : str, optional
+        Colourmap to assign colours from, by default 'viridis_r'
+    dot_scale : float, optional
+        Scaling for the size of the dots, by default 5.0
+    percentile : Tuple[int, int], optional
+        Percentiles for adjusting the colourmap scale,
+        by default (2, 98)
+    max_words : int, optional
+        Maximum number of words to show on Y axis labels, 0 means show
+        all of them, by default 0
+    fig : Optional[plt.Figure], optional
+        Figure to be used or None to create a new one, by default None
+
+    Returns
+    -------
+    Tuple[plt.Figure, Union[plt.Axes, np.array]]
+        Figure and Axes or array of Axes of the resulting plot
+    """
+
+    # Retrieve the dimensions
     dims = DIMENSIONS.loc['gsea']
     n_plots = len(data)
-    common_opts = {'column': column, 'threshold': threshold,
-        'cmap': cmap, 'x': x, 'y': y, 'dot_scale': dot_scale,
-        'n_terms': n_terms}
+    # Common options for all the plots
+    common_opts = {'column': column, 'threshold': threshold, 'cmap': cmap,
+        'x': x, 'y': y, 'dot_scale': dot_scale, 'n_terms': n_terms,
+        'percentile': percentile, 'max_words': max_words}
     p_options = [common_opts.copy() for _ in range(n_plots)]
+    # Specific options: the data and title (derived from ID)
     for pos,(k,v) in enumerate(data.items()):
         p_options[pos]['df'] = v
         p_options[pos]['title'] = f'Cluster {k}'
-
+    # Distribute the plots
     fig,ax = distribute_plots(
         p_function=plot_gsea_dotplot,
         n_plots=n_plots,
