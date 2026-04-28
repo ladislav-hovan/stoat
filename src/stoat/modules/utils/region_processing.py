@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Public License along
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
-### Imports and settings ###
+### Imports ###
 import pandas as pd
 
 from pathlib import Path

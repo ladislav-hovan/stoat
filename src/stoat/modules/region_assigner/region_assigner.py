@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Public License along
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
-### Imports and settings ###
+### Imports ###
 import pandas as pd
 
 from anndata import AnnData
@@ -41,6 +41,7 @@ class RegionAssigner:
         mapping: Optional[pd.Series] = None,
         from_expression: bool = False,
         layer: Optional[str] = None,
+        key_added: str = 'region_id',
         **kwargs,
     ) -> None:
 
@@ -60,17 +61,17 @@ class RegionAssigner:
             determine_cluster_labels(
                 spatial_table=self.st,
                 layer=layer,
-                key_added='region_id',
+                key_added=key_added,
                 **clustering_opts,
             )
-            id_col = self.st.obs['region_id']
-            self.st.obs['region_id'] = id_col.replace(-1, None)
+            id_col = self.st.obs[key_added]
+            self.st.obs[key_added] = id_col.replace(-1, None)
         elif mapping is not None:
             # Assignment of spots to regions, fills in NaN for missing
-            self.st.obs['region_id'] = mapping
+            self.st.obs[key_added] = mapping
         else:
             # Every valid spot is its own region
-            self.st.obs['region_id'] = [
+            self.st.obs[key_added] = [
                 ind if val else None
                 for ind,val in self.st.obs[validity].items()
             ]
@@ -78,6 +79,7 @@ class RegionAssigner:
 
     def collapse_expression(
         self,
+        key: str = 'region_id',
     ) -> None:
 
         if 'averaged' in self.st.layers:
@@ -88,7 +90,7 @@ class RegionAssigner:
         valid = get_validity(self.st)
 
         region_to_spot = pd.get_dummies(
-            self.st.obs['region_id'],
+            self.st.obs[key],
             sparse=True,
             dtype=int,
         ).T

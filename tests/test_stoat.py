@@ -1,10 +1,37 @@
-from stoat import Stoat
+# Copyright (C) 2026 Ladislav Hovan <ladislav.hovan@ncmbm.uio.no>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This library is free software: you can redistribute it and/or
+# modify it under the terms of the GNU Public License as published
+# by the Free Software Foundation; either version 3 of the License,
+# or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Public License along
+# with this library. If not, see <https://www.gnu.org/licenses/>.
+
+### Imports ###
+import pytest
 
 import pandas as pd
-import pandas.testing as pt
 
-# def setup_stoat_obj():
+from stoat import Stoat
 
+### Fixtures ###
+@pytest.fixture
+def trial_stoat_obj():
+    stoat_obj = Stoat()
+    stoat_obj.load_visium_dataset(
+        'tests/stoat/',
+        
+    )
+
+    return stoat_obj
 #    # Loads expression and spatial into a trial object
 #    stoat_obj = Stoat(motif_prior='../../input/priors/new/tf_prior_fixed.tsv', 
 #        ppi_prior='../../input/priors/new/ppi_prior.tsv',
@@ -25,25 +52,8 @@ import pandas.testing as pt
 
 #    return stoat_obj
 
-
-# TODO: Update tests
-# def test_normalise_library_size():
-#     stoat_obj = Stoat()
-#     stoat_obj.expression = pd.DataFrame([
-#         [1, 2, 3],
-#         [2, 2, 1],
-#         [0, 0, 1]
-#         ])
-#     stoat_obj.avg_expression = stoat_obj.expression.copy()
-#     stoat_obj.normalise_library_size()
-#     pt.assert_series_equal(stoat_obj.size_factors, pd.Series([1.5, 1.25, 0.25]))
-#     pt.assert_frame_equal(stoat_obj.expression, pd.DataFrame([
-#         [1/1.5, 2/1.5, 3/1.5],
-#         [2/1.25, 2/1.25, 1/1.25],
-#         [0, 0, 4]
-#     ]))
-
-
+### Unit tests ###
+# Trivial tests
 def test_basic_functionality():
     stoat_obj = Stoat()
 

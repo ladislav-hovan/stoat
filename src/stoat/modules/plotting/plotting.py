@@ -16,9 +16,9 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 # This file contains the implementation of plotting functions for STOAT
-# They can be called directly and certain STOAT functions call them
+# They can be called directly and certain STOAT methods call them
 
-### Imports and settings ###
+### Imports ###
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -747,12 +747,17 @@ def distribute_plots(
     for i in range(n_plots):
         if n_plots == 1:
             ax_i = ax
+        elif n_rows == 1:
+            ax_i = ax[i % n_cols]
         else:
             ax_i = ax[i // n_cols][i % n_cols]
         p_function(**p_options[i], ax=ax_i)
     # Hide the possible extra axes from the plot
     for i in range(n_plots, n_rows * n_cols):
-        ax_i = ax[i // n_cols][i % n_cols]
+        if n_rows == 1:
+            ax_i = ax[i % n_cols]
+        else:
+            ax_i = ax[i // n_cols][i % n_cols]
         ax_i.set_axis_off()
 
     return (fig, ax)

@@ -17,6 +17,7 @@
 
 ### Imports ###
 from pathlib import Path
+from sklearn.metrics import adjusted_rand_score
 
 from stoat.config import FORMAT
 from stoat.modules.clustering import determine_cluster_labels
@@ -67,3 +68,22 @@ class StoatAnalysis(Stoat):
             key_added=cluster_label,
             **kwargs,
         )
+
+
+    def calculate_ari(
+        self,
+        label1: str,
+        label2: str,
+        unclassified_label: int = -1,
+    ) -> float:
+
+        st = self.spatial[self.table]
+        clust1 = st.obs[label1][st.obs[label1] != unclassified_label]
+        clust2 = st.obs[label2][st.obs[label2] != unclassified_label]
+        overlap = set(clust1.index).intersection(clust2.index)
+        if len(overlap) != len(clust1) or len(overlap) != len(clust2):
+            print ('Some samples were removed when overlapping the clusters.')
+        new_id = sorted(overlap)
+
+        return adjusted_rand_score(st.obs.loc[new_id, label1],
+            st.obs.loc[new_id, label2])

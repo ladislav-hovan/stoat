@@ -15,11 +15,14 @@
 # You should have received a copy of the GNU Public License along
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
-### Imports and settings ###
+### Imports ###
+import numpy as np
 import squidpy as sq
 
 from anndata import AnnData
-from scipy.sparse import eye
+from collections import Counter
+from numpy.random import default_rng
+from scipy.sparse import csr_matrix, eye
 from typing import Callable, Optional
 
 from stoat.modules.utils import rescale_weights_by_row, weigh_by_distance
@@ -33,6 +36,8 @@ class ExpressionSmoother:
         n_rings: int = 1,
         n_neighs: int = 6,
         coord_type: Optional[str] = None,
+        random_connections: bool = False,
+        random_seed: Optional[int] = None,
     ):
 
         self.st = spatial_table
@@ -42,6 +47,8 @@ class ExpressionSmoother:
             n_neighs=n_neighs,
             coord_type=coord_type,
         )
+        if random_connections:
+            self._reshuffle_connections(random_seed)
         self.st.obs['valid'] = self.st.obs['in_tissue']
         # A definition of neighbour that includes self
         self.st.obsp['spatial_neighbours'] = (
@@ -49,8 +56,64 @@ class ExpressionSmoother:
             eye(self.st.n_obs, format='csr')
         )
 
-
     ### Class methods ###
+    def _reshuffle_connections(
+        self,
+        random_seed: Optional[int] = None,
+        max_attempts: int = 10,
+    ) -> None:
+
+        rng = default_rng(seed=random_seed)
+        sp_conn = self.st.obsp['spatial_connectivities']
+        sp_dists = self.st.obsp['spatial_distances']
+        n = sp_conn.shape[0]
+        in_tissue = self.st.obs['in_tissue'].astype(int).values.reshape(
+            (-1, 1))
+        sp_conn_it = sp_conn.multiply(in_tissue).multiply(in_tissue.T)
+        sp_dists_it = sp_dists.multiply(in_tissue).multiply(in_tissue.T
+            ).tocsr()
+        n_it_neighs = sp_conn_it.sum(axis=1).A1.astype(int)
+        sp_conn_it.eliminate_zeros()
+        sp_dists_it.eliminate_zeros()
+        initial_conn = sp_conn.todense() - sp_conn_it.todense()
+        initial_dists = sp_dists.todense() - sp_dists_it.todense()
+        # This way of trying to make sure everything is conserved may fail
+        # Hence, we try multiple times
+        for attempt in range(max_attempts):
+            new_conn = initial_conn.copy()
+            new_dists = initial_dists.copy()
+            counts = Counter()
+            try:
+                for i in range(n):
+                    if not in_tissue[i][0]:
+                        continue
+                    n_left = n_it_neighs[i] - counts[i]
+                    if n_left == 0:
+                        continue
+                    arr = np.array([j for j in range(i + 1, n)
+                        if (counts[j] < n_it_neighs[j])
+                        and in_tissue[j][0]])
+                    new_idx = rng.choice(arr, n_left, replace=False)
+                    old_idx = sp_dists_it[i, :].indices
+                    dists = sp_dists_it[i, old_idx].todense().A1
+                    for pos,j in enumerate(new_idx):
+                        counts[j] += 1
+                        new_conn[i, j] = 1
+                        new_conn[j, i] = 1
+                        new_dists[i, j] = dists[pos]
+                        new_dists[j, i] = dists[pos]
+            except ValueError:
+                if attempt == max_attempts - 1:
+                    print ('Could not successfully reshuffle connections '
+                        'while preserving the constraints.')
+                    # No assignment happens - connections remain as before
+                continue
+            else:
+                self.st.obsp['spatial_connectivities'] = csr_matrix(new_conn)
+                self.st.obsp['spatial_distances'] = csr_matrix(new_dists)
+                break
+
+
     def filter_edges(
         self,
     ) -> None:

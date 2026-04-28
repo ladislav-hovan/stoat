@@ -86,10 +86,11 @@ def cluster_leiden(
         spatial_table,
         use_rep='X_pca',
     )
-    # sc.tl.umap(spatial_table)
     sc.tl.leiden(
         spatial_table,
         key_added=key_added,
+        flavor='igraph',
+        n_iterations=2,
         **kwargs,
     )
     spatial_table.obs[key_added] = spatial_table.obs[key_added].astype(int)

@@ -31,6 +31,7 @@ from spatialdata_io import visium, visium_hd
 from typing import Callable, Iterable, Optional, Tuple, Union
 
 from stoat.config import FORMAT
+from stoat.modules.clustering import determine_cluster_labels
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
 from stoat.modules.plotting import (plot_joint_qc_metrics, plot_qc_metrics,
@@ -238,20 +239,35 @@ class Stoat:
 
 
     @wraps(plot_spot_classification)
-    def plot_regions(
+    def plot_clusters(
         self,
+        key: str = 'clusters',
         *args,
         **kwargs,
     ) -> Axes:
 
         ax = plot_spot_classification(
             self.spatial[self.table],
-            self.spatial[self.table].obs['region_id'],
+            self.spatial[self.table].obs[key],
             *args,
             **kwargs,
         )
 
         return ax
+
+
+    @wraps(plot_clusters)
+    def plot_regions(
+        self,
+        *args,
+        **kwargs,
+    ) -> Axes:
+
+        return self.plot_clusters(
+            key='region_id',
+            *args,
+            **kwargs,
+        )
 
     ## Main workflow
     def average_expression(
@@ -260,6 +276,8 @@ class Stoat:
         max_invalid: int = 0,
         edges_invalid: bool = True,
         avg_function: Callable = weigh_by_distance,
+        random_connections: bool = False,
+        random_seed: Optional[int] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -269,6 +287,8 @@ class Stoat:
             n_rings=n_rings,
             n_neighs=self.n_neighs,
             coord_type=self.coord_type,
+            random_connections=random_connections,
+            random_seed=random_seed,
         )
         if edges_invalid:
             smoother.filter_edges()
@@ -324,5 +344,22 @@ class Stoat:
             save_network=save_network,
             save_degrees=save_degrees,
             overwrite_old=overwrite_old,
+            **kwargs,
+        )
+
+    # Extra functions
+    def cluster_spots(
+        self,
+        layer: Optional[str] = None,
+        validity: str = 'in_tissue',
+        key_added: str = 'clusters',
+        **kwargs,
+    ) -> None:
+
+        determine_cluster_labels(
+            self.spatial[self.table],
+            layer=layer,
+            validity=validity,
+            key_added=key_added,
             **kwargs,
         )
