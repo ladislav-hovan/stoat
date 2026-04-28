@@ -74,6 +74,19 @@ def calculate_principal_components(
     )
 
 
+def order_by_prevalence(
+    labels: pd.Series,
+    unclassified_label: Any = -1,
+) -> pd.Series:
+
+    counts = labels[labels != unclassified_label].value_counts()
+    mapping = {}
+    for pos,k in enumerate(counts.keys()):
+        mapping[k] = pos
+
+    return labels.map(mapping)
+
+
 def cluster_leiden(
     spatial_table: AnnData,
     key_added: str = 'clusters',
@@ -94,6 +107,8 @@ def cluster_leiden(
         **kwargs,
     )
     spatial_table.obs[key_added] = spatial_table.obs[key_added].astype(int)
+    spatial_table.obs[key_added] = order_by_prevalence(
+        spatial_table.obs[key_added])
 
 
 def cluster_hdbscan(
