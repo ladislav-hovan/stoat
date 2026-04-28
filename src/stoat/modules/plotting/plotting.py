@@ -231,6 +231,7 @@ def plot_spot_expression(
     hide_overflow: bool = True,
     overflow_threshold: float = 0.01,
     overflow_colour: Any = 'navy',
+    crop_edges: bool = False,
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
     """
@@ -268,6 +269,8 @@ def plot_spot_expression(
     overflow_colour : Any, optional
         Colour to be used for overflowing spots, only used if
         hide_overflow is True, by default 'navy'
+    crop_edges : bool, optional
+        Whether to crop out invalid edges, by default False
     ax : plt.Axes, optional
         Axes to plot on or None to generate new ones, by default None
 
@@ -309,6 +312,7 @@ def plot_spot_expression(
         validity=spatial_table.obs[validity],
         colours=colours,
         title=title,
+        crop_edges=crop_edges,
         ax=ax,
     )
     ax_height = ax.get_window_extent().height
@@ -340,6 +344,7 @@ def plot_spot_classification(
     title: Optional[str] = None,
     ordering: Optional[Iterable[str]] = None,
     n_classes: Optional[int] = None,
+    crop_edges: bool = False,
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
     """
@@ -374,6 +379,8 @@ def plot_spot_classification(
         useful to make plots with different number of actual classes
         consistent, None means the number of actual classes will be
         used, by default None
+    crop_edges : bool, optional
+        Whether to crop out invalid edges, by default False
     ax : plt.Axes, optional
         Axes to plot on or None to generate new ones, by default None
 
@@ -412,6 +419,7 @@ def plot_spot_classification(
         validity=spatial_table.obs[validity],
         colours=colours,
         title=title,
+        crop_edges=crop_edges,
         ax=ax,
     )
     # Add the legend if required
@@ -594,6 +602,48 @@ def generate_cmap_and_colours(
     return (cmap, norm, colours)
 
 
+def determine_empty_edges(
+    spatial_table: AnnData,
+    validity: pd.Series,
+) -> pd.Series:
+    """
+    Determines which spots should be kept so that invalid edges are
+    excluded from the plot.
+
+    Parameters
+    ----------
+    spatial_table : AnnData
+        AnnData object containing the spatial information
+    validity : pd.Series
+        Series of booleans determining whether the spots are to be
+        considered valid
+
+    Returns
+    -------
+    pd.Series
+        Series of booleans stating which spots should be plotted
+    """
+
+    plotted = pd.Series(True, validity.index)
+    rows = spatial_table.obs['array_row']
+    cols = spatial_table.obs['array_col']
+    for coord in [rows, cols]:
+        temp = coord.rename('coord')
+        temp = pd.DataFrame((temp, validity.rename('valid'))).T
+        valid_counts = temp.groupby('coord')['valid'].sum()
+        coord_vals = sorted(valid_counts.index)
+        i = 0
+        while valid_counts[coord_vals[i]] == 0:
+            i += 1
+        j = len(coord_vals) - 1
+        while valid_counts[coord_vals[j]] == 0:
+            j -= 1
+        plotted &= (coord >= coord_vals[i])
+        plotted &= (coord <= coord_vals[j])
+
+    return plotted
+
+
 def plot_hexagons(
     spatial_table: AnnData,
     validity: pd.Series,
@@ -601,6 +651,7 @@ def plot_hexagons(
     title: Optional[str] = None,
     edge_colour: Any = 'gray',
     invalid_colour: Any = 'gray',
+    crop_edges: bool = False,
     ax: Optional[plt.Axes] = None,
 ) -> Optional[plt.Axes]:
     """
@@ -624,6 +675,8 @@ def plot_hexagons(
         Colour of the hexagon edges, by default 'gray'
     invalid_colour : Any, optional
         Colour of the invalid spots, by default 'gray'
+    crop_edges : bool, optional
+        Whether to crop out invalid edges, by default False
     ax : plt.Axes, optional
         Axes to plot on or None to generate new ones, by default None
 
@@ -633,6 +686,10 @@ def plot_hexagons(
         Axes of the resulting plot
     """
 
+    # Crop edges without valid spots if requested
+    plotted = pd.Series(True, validity.index)
+    if crop_edges:
+        plotted = determine_empty_edges(spatial_table, validity)
     # Cartesian coordinates
     hcoord, vcoord = convert_coordinates(
         spatial_table.obs['array_row'],
@@ -645,10 +702,17 @@ def plot_hexagons(
     ax.set_axis_off()
     # Create a DataFrame to ensure the Series align by index
     plot_df = pd.DataFrame({'x': hcoord, 'y': vcoord, 'c': colours,
-        'v': validity})
+        'v': validity, 'p': plotted})
+    limits = [[max(hcoord), min(hcoord)], [max(vcoord), min(vcoord)]]
     # Add coloured hexagons to the plot
     for ind in plot_df.index:
-        x,y,c,v = plot_df.loc[ind]
+        x,y,c,v,p = plot_df.loc[ind]
+        if not p:
+            continue
+        limits[0][0] = min(limits[0][0], x)
+        limits[0][1] = max(limits[0][1], x)
+        limits[1][0] = min(limits[1][0], y)
+        limits[1][1] = max(limits[1][1], y)
         if not v:
             # Invalid hexagons are grey
             face_colour = invalid_colour
@@ -664,8 +728,8 @@ def plot_hexagons(
         )
         ax.add_patch(hex_spot)
     # Adjust the limits
-    ax.set_xlim(min(hcoord) - 1, max(hcoord) + 1)
-    ax.set_ylim(min(vcoord) - 1, max(vcoord) + 1)
+    ax.set_xlim(limits[0][0] - 1, limits[0][1] + 1)
+    ax.set_ylim(limits[1][0] - 1, limits[1][1] + 1)
     if title is not None:
         # Add a figure title
         ax.set_title(title, size=ax.get_window_extent().height / 40)
