@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Public License along
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
-### Imports and definitions ###
+### Imports ###
 import glob
 import os
 
@@ -24,13 +24,15 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scanpy as sc
 
+from anndata import AnnData
 from pathlib import Path
-from typing import Literal, Optional, Union
+from sklearn.metrics import adjusted_rand_score
+from typing import Optional
 
 from stoat import Stoat
 from stoat.config import FORMAT, FILE_LIKE
-from stoat.modules.utils import (create_sparse_dataframe, get_layer,
-    load_into_df, save_df_into_filelike)
+from stoat.modules.utils import (get_layer, load_into_df,
+    save_df_into_filelike)
 
 ### Functions ###
 def describe_expression(
@@ -145,6 +147,22 @@ def collate_degrees(
         collection.append(temp.copy())
     df = pd.concat(collection, axis=1)
     save_df_into_filelike(df, output_file, format)
+
+
+def calculate_ari(
+    series1 = pd.Series,
+    series2 = pd.Series,
+    unclassified_label: int = -1,
+) -> float:
+
+    clust1 = series1[series1 != unclassified_label]
+    clust2 = series2[series2 != unclassified_label]
+    overlap = set(clust1.index).intersection(clust2.index)
+    if len(overlap) != len(clust1) or len(overlap) != len(clust2):
+        print ('Some samples were removed when overlapping the clusters.')
+    new_id = sorted(overlap)
+
+    return adjusted_rand_score(series1.loc[new_id], series2.loc[new_id])
 
 
 def perform_gsea(

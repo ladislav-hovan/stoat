@@ -26,7 +26,7 @@ from matplotlib.pyplot import Axes, Figure
 from pathlib import Path
 from scanpy.preprocessing import (calculate_qc_metrics, filter_cells,
     filter_genes, normalize_total)
-from spatialdata import SpatialData
+from spatialdata import read_zarr, SpatialData
 from spatialdata_io import visium, visium_hd
 from typing import Callable, Iterable, Optional, Tuple, Union
 
@@ -103,6 +103,23 @@ class Stoat:
             print (f'Multiple tables were detected, using {self.table}.')
         self.coord_type = 'grid'
         self.n_neighs = 4
+
+
+    @wraps(read_zarr)
+    def load_zarr(
+        self,
+        path: Path,
+        coord_type: str = 'grid',
+        n_neighs: int = 6,
+        **kwargs,
+    ) -> None:
+
+        self.spatial = read_zarr(path, **kwargs)
+        self.table = max(self.spatial.tables.keys())
+        if len(self.spatial.tables) > 1:
+            print (f'Multiple tables were detected, using {self.table}.')
+        self.coord_type = coord_type
+        self.n_neighs = n_neighs
 
     ## Data preprocessing
     def calculate_qc_metrics(
