@@ -142,6 +142,12 @@ class NetworkCalculator:
                 'calculating it now.')
             self.calculate_basis()
 
+        if save_degrees and self.motif_prior is None:
+            print ('No motif prior was provided, therefore there will be no '
+                'degrees calculated either as the output will be Pearson '
+                'correlation networks.')
+            save_degrees = False
+
         def get_full_name(
             base_filename: str,
         ) -> str:

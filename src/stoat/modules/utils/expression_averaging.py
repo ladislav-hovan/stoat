@@ -19,7 +19,7 @@
 import numpy as np
 
 from anndata import AnnData
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, eye
 
 from stoat.config import DISTANCE_KERNEL
 
@@ -112,11 +112,11 @@ def weigh_by_distance(
     elif kernel == 'gaussian':
         # The contribution is based on the distance from the central cell
         # and decreases proportionally to exp(-r**2)
-        dists = adata.obsp['spatial_distances'].copy()
+        dists = adata.obsp['spatial_distances'].todok()
         for i in range(adata.n_obs):
             dists[i,i] = 0
         # Add the 1 again from is_neigh (doesn't affect sparse zeroes)
-        d_weights = calculate_gaussian_m1(dists, sigma) + is_neigh
+        d_weights = calculate_gaussian_m1(dists.tocsr(), sigma) + is_neigh
     else:
         raise NotImplementedError(f'Unrecognised kernel: {kernel}'
             f'\nOptions are: {", ".join(DISTANCE_KERNEL.__args__)}')

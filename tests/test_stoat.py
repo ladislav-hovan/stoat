@@ -16,6 +16,8 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
+import glob
+import os
 import pytest
 
 from stoat import Stoat
@@ -29,6 +31,10 @@ def trial_stoat_obj():
     return stoat_obj
 
 ### Unit tests ###
+
+### Class unit tests ###
+
+### Integration tests ###
 # Dataset loading
 def test_object_loading(trial_stoat_obj):
     assert type(trial_stoat_obj) == Stoat
@@ -37,3 +43,18 @@ def test_object_loading(trial_stoat_obj):
     assert trial_stoat_obj.n_neighs == 6
     # Check dimensionality
     assert trial_stoat_obj.spatial[trial_stoat_obj.table].shape == (338, 1219)
+
+# Short full workflow
+def test_workflow(trial_stoat_obj, tmp_path):
+    trial_stoat_obj.filter_genes(drop_deprecated=True, min_counts=1)
+    trial_stoat_obj.filter_spots(min_counts=1)
+    trial_stoat_obj.average_expression(kernel='gaussian', sigma=0.4)
+    trial_stoat_obj.assign_regions(layer='averaged')
+    trial_stoat_obj.calculate_networks(
+        save_dir=tmp_path,
+        motif_prior=None,
+        ppi_prior=None,
+        computing='cpu',
+    )
+
+    assert len(glob.glob('stoat_*.feather', root_dir=tmp_path)) == 23

@@ -64,6 +64,7 @@ netzoopy-stoat = { path = ".", editable = true }
 [tool.pixi.environments]
 stoat-dev = ["stoat-dev"]
 stoat-gpu = ["stoat-gpu"]
+stoat-ipython = ["stoat-ipython"]
 
 [tool.pixi.feature.stoat-dev.dependencies]
 pytest = ">=8.0.0"
@@ -76,3 +77,9 @@ cupy-cuda12x = ">=12.0.0"
 
 [tool.pixi.feature.stoat-gpu.tasks]
 stoat-gpu = "netzoopy-stoat"
+
+[tool.pixi.feature.stoat-ipython.pypi-dependencies]
+ipykernel = ">=7.0.0"
+ipython = ">=9.0.0"
+notebook = ">=7.0.0"
+pip = ">=25.0.0"

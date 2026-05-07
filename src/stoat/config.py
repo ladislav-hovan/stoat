@@ -45,3 +45,7 @@ P_VAL_MAPPING = {
     'NOM p-val': 'Pval',
     'FDR q-val': 'FDR',
 }
+IGNORED_WARNINGS = {
+    'Converting .* to categorical dtype.',
+    'Variable names are not unique.',
+}

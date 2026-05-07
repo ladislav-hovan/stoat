@@ -17,6 +17,7 @@
 
 ### Imports ###
 import spatialdata_plot  # Calm down Pylance, we need this
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -30,7 +31,7 @@ from spatialdata import read_zarr, SpatialData
 from spatialdata_io import visium, visium_hd
 from typing import Callable, Iterable, Optional, Tuple, Union
 
-from stoat.config import FORMAT
+from stoat.config import FORMAT, IGNORED_WARNINGS
 from stoat.modules.clustering import determine_cluster_labels
 from stoat.modules.expression_smoother import ExpressionSmoother
 from stoat.modules.network_calculator import NetworkCalculator
@@ -84,7 +85,10 @@ class Stoat:
         **kwargs,
     ) -> None:
 
-        self.spatial = visium(*args, **kwargs)
+        with warnings.catch_warnings():
+            for regex in IGNORED_WARNINGS:
+                warnings.filterwarnings('ignore', regex)
+            self.spatial = visium(*args, **kwargs)
         self.table = 'table'
         self.coord_type = 'grid'
         self.n_neighs = 6
@@ -97,7 +101,10 @@ class Stoat:
         **kwargs,
     ) -> None:
 
-        self.spatial = visium_hd(*args, **kwargs)
+        with warnings.catch_warnings():
+            for regex in IGNORED_WARNINGS:
+                warnings.filterwarnings('ignore', regex)
+            self.spatial = visium_hd(*args, **kwargs)
         self.table = max(self.spatial.tables.keys())
         if len(self.spatial.tables) > 1:
             print (f'Multiple tables were detected, using {self.table}.')
