@@ -20,12 +20,12 @@ import hdbscan
 
 import pandas as pd
 import scanpy as sc
+import SpaGCN as spg
 
 from anndata import AnnData
 from typing import Any, Mapping, Optional, Tuple
 
 from stoat.config import CLUSTERING
-# from stoat.modules.utils import create_sparse_dataframe
 
 ### Functions ###
 def normalise_data(
@@ -42,7 +42,6 @@ def normalise_data(
     if normalise:
     # Normalise either each gene or each spot
         # TODO: Find a way to keep sparse if possible
-        # df = create_sparse_dataframe(st_f, layer=layer)
         df = st_f.to_df(layer=layer)
         if normalise_genes:
             st_f.layers[output] = df.subtract(df.mean(axis=0), axis=1).divide(
@@ -130,6 +129,36 @@ def cluster_hdbscan(
     spatial_table.obs[key_added] = classes
 
 
+def cluster_spagcn(
+    spatial_table: AnnData,
+    key_added: str = 'clusters',
+    p: float = 0.5,
+    **kwargs,
+) -> pd.Series:
+
+    adj_mat = spg.calculate_adj_matrix(
+        x=spatial_table.obs['array_row'],
+        y=spatial_table.obs['array_col'],
+        x_pixel=spatial_table.obsm['spatial'][:,1],
+        y_pixel=spatial_table.obsm['spatial'][:,0],
+        histology=False,
+    )
+    l = spg.search_l(p, adj_mat, start=0.01, end=1000, tol=0.01, max_run=100)
+    scaled_ad = AnnData(spatial_table.layers['normalised'])
+    clf = spg.SpaGCN()
+    clf.set_l(l)
+    # Set seed
+    # random.seed(r_seed)
+    # torch.manual_seed(t_seed)
+    # np.random.seed(n_seed)
+    # Run
+    clf.train(scaled_ad, adj_mat, init_spa=True, init='louvain', **kwargs)
+    y_pred,_ = clf.predict()
+    spatial_table.obs[key_added] = y_pred
+    spatial_table.obs[key_added] = order_by_prevalence(
+        spatial_table.obs[key_added])
+
+
 def change_class_annotation(
     spatial_table: AnnData,
     classes: pd.Series,
@@ -204,6 +233,12 @@ def determine_cluster_labels(
         )
     elif clustering == 'hdbscan':
         cluster_hdbscan(
+            scaled_table,
+            key_added=key_added,
+            **clustering_opts,
+        )
+    elif clustering == 'spagcn':
+        cluster_spagcn(
             scaled_table,
             key_added=key_added,
             **clustering_opts,

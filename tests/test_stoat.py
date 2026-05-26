@@ -26,7 +26,7 @@ from stoat import Stoat
 @pytest.fixture
 def trial_stoat_obj():
     stoat_obj = Stoat()
-    stoat_obj.load_zarr('tests/stoat/test_stoat.zarr')
+    stoat_obj.load_zarr(os.path.join('tests', 'stoat', 'test_stoat.zarr'))
 
     return stoat_obj
 

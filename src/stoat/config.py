@@ -23,7 +23,7 @@ from typing import Literal, Union
 
 ### Definitions ###
 # Typing literals
-CLUSTERING = Literal['leiden', 'hdbscan']
+CLUSTERING = Literal['leiden', 'hdbscan', 'spagcn']
 DISTANCE_KERNEL = Literal['uniform', 'gaussian']
 FORMAT = Literal['tsv', 'feather', 'parquet']
 FILE_LIKE = Union[bytes, Path]
