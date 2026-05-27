@@ -16,19 +16,19 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
-import pandas as pd
-
+from io import BytesIO, StringIO
+from pandas import DataFrame
 from pathlib import Path
 from typing import Literal, Union
 
 ### Definitions ###
 # Typing literals
-CLUSTERING = Literal['leiden', 'hdbscan', 'spagcn']
-DISTANCE_KERNEL = Literal['uniform', 'gaussian']
-FORMAT = Literal['tsv', 'feather', 'parquet']
-FILE_LIKE = Union[bytes, Path]
+CLUSTERING = Literal['hdbscan', 'leiden', 'spagcn']
+DISTANCE_KERNEL = Literal['gaussian', 'uniform']
+FORMAT = Literal['feather', 'parquet', 'tsv']
+FILE_LIKE = Union[BytesIO, Path, StringIO]
 # Plotting defaults
-DIMENSIONS = pd.DataFrame({
+DIMENSIONS = DataFrame({
     'type': ['deg', 'gsea', 'match'],
     'overhead': [2.5, 2.5, 3.5],
     'width_per_col': [3, 8, 3],
@@ -41,9 +41,9 @@ COL_TO_TITLE = {
 }
 P_VAL_MAPPING = {
     'Adjusted P-value': 'FDR',
-    'P-value': 'Pval',
-    'NOM p-val': 'Pval',
     'FDR q-val': 'FDR',
+    'NOM p-val': 'Pval',
+    'P-value': 'Pval',
 }
 IGNORED_WARNINGS = {
     'Converting .* to categorical dtype.',

@@ -1,4 +1,5 @@
 from .data_manipulation import *
+from .docstring_adjustment import *
 from .expression_averaging import *
 from .file_management import *
 from .network_retrieval import *
