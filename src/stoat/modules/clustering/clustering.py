@@ -17,10 +17,18 @@
 
 ### Imports ###
 import hdbscan
+import random
+import torch
+import warnings
 
+import numpy as np
 import pandas as pd
 import scanpy as sc
-import SpaGCN as spg
+# Some deprecated imports of input functions in SpaGCN
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore',
+        'Importing read_.* from `anndata` is deprecated')
+    import SpaGCN as spg
 
 from anndata import AnnData
 from typing import Any, Mapping, Optional, Tuple
@@ -28,7 +36,7 @@ from typing import Any, Mapping, Optional, Tuple
 from stoat.config import CLUSTERING
 
 ### Functions ###
-def normalise_data(
+def subset_and_normalise_data(
     spatial_table: AnnData,
     layer: Optional[str] = None,
     validity: str = 'valid',
@@ -36,6 +44,35 @@ def normalise_data(
     normalise: bool = True,
     normalise_genes: bool = True,
 ) -> AnnData:
+    """
+    Creates a new AnnData object with a subset of the data provided,
+    also optionally normalises the data. A new layer is created to hold
+    the data.
+
+    Parameters
+    ----------
+    spatial_table : AnnData
+        AnnData object containing the data
+    layer : Optional[str], optional
+        Name of the newly created layer, by default normalised
+    validity : str, optional
+        Column indicating which indices are valid, by default 'valid'
+    output : str, optional
+        New layer to be created for normalised data,
+        by default 'normalised'
+    normalise : bool, optional
+        Whether to normalise the data, by default True
+    normalise_genes : bool, optional
+        Whether to normalise the genes, if False then spots are
+        normalised instead, only used if normalise is True,
+        by default True
+
+    Returns
+    -------
+    AnnData
+        AnnData object containing the valid subset of the data,
+        optionally also normalised
+    """
 
     # Subset only the valid spots
     st_f = spatial_table[spatial_table.obs[validity].astype(bool)].copy()
@@ -90,7 +127,7 @@ def cluster_leiden(
     spatial_table: AnnData,
     key_added: str = 'clusters',
     **kwargs,
-) -> pd.Series:
+) -> None:
 
     # Performs the Leiden clustering on the provided AnnData object with
     # principal components
@@ -114,7 +151,7 @@ def cluster_hdbscan(
     spatial_table: AnnData,
     key_added: str = 'clusters',
     **kwargs,
-) -> pd.Series:
+) -> None:
 
     clusterer = hdbscan.HDBSCAN(**kwargs)
     clusterer.fit(spatial_table.obsm['X_pca'])
@@ -133,9 +170,13 @@ def cluster_spagcn(
     spatial_table: AnnData,
     key_added: str = 'clusters',
     p: float = 0.5,
+    r_seed: Optional[int] = None,
+    t_seed: Optional[int] = None,
+    n_seed: Optional[int] = None,
     **kwargs,
-) -> pd.Series:
+) -> None:
 
+    # Calculate the adjacency matrix
     adj_mat = spg.calculate_adj_matrix(
         x=spatial_table.obs['array_row'],
         y=spatial_table.obs['array_col'],
@@ -143,15 +184,16 @@ def cluster_spagcn(
         y_pixel=spatial_table.obsm['spatial'][:,0],
         histology=False,
     )
+    # Find a suitable value of l given the matrix and p
     l = spg.search_l(p, adj_mat, start=0.01, end=1000, tol=0.01, max_run=100)
     scaled_ad = AnnData(spatial_table.layers['normalised'])
     clf = spg.SpaGCN()
     clf.set_l(l)
-    # Set seed
-    # random.seed(r_seed)
-    # torch.manual_seed(t_seed)
-    # np.random.seed(n_seed)
-    # Run
+    # Set the different random seeds
+    random.seed(r_seed)
+    torch.manual_seed(t_seed)
+    np.random.seed(n_seed)
+    # Actually run the model
     clf.train(scaled_ad, adj_mat, init_spa=True, init='louvain', **kwargs)
     y_pred,_ = clf.predict()
     spatial_table.obs[key_added] = y_pred
@@ -210,7 +252,7 @@ def determine_cluster_labels(
     # Determines the clusters in the data and returns the labels to be
     # used for plotting
     # Subset and scale data
-    scaled_table = normalise_data(
+    scaled_table = subset_and_normalise_data(
         spatial_table,
         layer=layer,
         validity=validity,
@@ -255,84 +297,3 @@ def determine_cluster_labels(
         exclude_extra=exclude_extra,
         max_classes=max_classes,
     )
-
-
-# def plot_clusters(
-#     spatial: pd.DataFrame,
-#     classes: pd.Series,
-#     n_classes: int,
-#     ordering: Iterable[str],
-#     validity: str = 'in_tissue',
-#     ax: Optional[plt.Axes] = None,
-#     plotting_opt: Mapping[Any, Any] = {},
-# ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
-
-#     # Plots the results of the clustering based on the spatial pandas
-#     # DataFrame and the cluster labels
-#     # Select which spots to display, rest is gray
-#     spatial['Acceptable'] = (spatial[validity] & (classes != -1))
-#     plotting_opt_final = dict(colourmap='tab20', validity='Acceptable',
-#         n_classes=20, legend=False, ordering=ordering,
-#         title=f'{n_classes} classes total')
-#     plotting_opt_final.update(plotting_opt)
-#     if ax is None:
-#         # Create a new Figure and Axes
-#         fig,ax = plot_spot_classification(spatial, classes=classes,
-#             **plotting_opt_final)
-#         return fig,ax
-#     else:
-#         # Use the provided Axes
-#         plot_spot_classification(spatial, classes=classes, ax=ax,
-#             **plotting_opt_final)
-
-
-# def cluster_spots(
-#     df: pd.DataFrame,
-#     spatial: pd.DataFrame,
-#     ax: Optional[plt.Axes] = None,
-#     validity: str = 'in_tissue',
-#     normalise: bool = True,
-#     normalise_genes: bool = True,
-#     clustering: CLUSTERING = 'leiden',
-#     clustering_opt: Mapping[Any, Any] = {},
-#     n_variable: int = 2000,
-#     exclude_extra: bool = False,
-#     plotting_opt: Mapping[Any, Any] = {},
-# ) -> Optional[Tuple[plt.Figure, plt.Axes]]:
-
-#     # Clusters the spots based on the provided pandas DataFrame with
-#     # data and a spatial pandas DataFrame
-#     classes, ordering, n_classes = determine_cluster_labels(
-#         df, spatial, validity, normalise, normalise_genes, clustering,
-#         clustering_opt, n_variable, exclude_extra)
-
-#     return plot_clusters(spatial, classes, n_classes, ordering, validity, ax,
-#         plotting_opt)
-
-
-# def compare_clusterings(
-#     df: pd.DataFrame,
-#     spatial: pd.DataFrame,
-#     arg_list: Iterable[dict],
-#     plots_per_row: int = 2,
-# ) -> Tuple[plt.Figure, plt.Axes]:
-
-#     # Plots a meta figure displaying the clustering using different
-#     # options
-#     # Figure out how many rows and columns are actually needed
-#     n = len(arg_list)
-#     width = min(n, plots_per_row)
-#     length = ceil(n / plots_per_row)
-#     # Make a figure with subplots of that size
-#     fig,ax = plt.subplots(length, width, figsize=(width*8, length*8),
-#         tight_layout=True)
-#     # Make sure Axes are a 2D array to simplify indexing
-#     ax = np.reshape(ax, (length, width))
-#     for pos,arg in enumerate(arg_list):
-#         # Figure out the x and y coordinate on the canvas
-#         x = pos // plots_per_row
-#         y = pos % plots_per_row
-#         # Plot the clustering with the given arguments on those Axes
-#         cluster_spots(df, spatial, ax=ax[x][y], **arg)
-
-#     return fig,ax

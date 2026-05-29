@@ -25,27 +25,28 @@ from typing import Literal, Union
 # Typing literals
 CLUSTERING = Literal['hdbscan', 'leiden', 'spagcn']
 DISTANCE_KERNEL = Literal['gaussian', 'uniform']
-FORMAT = Literal['feather', 'parquet', 'tsv']
 FILE_LIKE = Union[BytesIO, Path, StringIO]
-# Plotting defaults
+FORMAT = Literal['feather', 'parquet', 'tsv']
+# Plotting default settings and mappings
+COL_TO_TITLE = {
+    'n_genes_by_counts': 'Number of expressed genes',
+    'total_counts': 'Total number of counts',
+    'pct_counts_mt': 'Mitochondrial gene percentage',
+}
 DIMENSIONS = DataFrame({
     'type': ['deg', 'gsea', 'match'],
     'overhead': [2.5, 2.5, 3.5],
     'width_per_col': [3, 8, 3],
     'height_per_line': [0.3, 0.5, 1],
 }).set_index('type')
-COL_TO_TITLE = {
-    'n_genes_by_counts': 'Number of expressed genes',
-    'total_counts': 'Total number of counts',
-    'pct_counts_mt': 'Mitochondrial gene percentage',
-}
 P_VAL_MAPPING = {
     'Adjusted P-value': 'FDR',
     'FDR q-val': 'FDR',
     'NOM p-val': 'Pval',
     'P-value': 'Pval',
 }
+# Ignored warnings when loading data
 IGNORED_WARNINGS = {
-    'Converting .* to categorical dtype.',
-    'Variable names are not unique.',
+    'Converting .* to categorical dtype',
+    'Variable names are not unique',
 }
