@@ -54,7 +54,7 @@ def subset_and_normalise_data(
     spatial_table : AnnData
         AnnData object containing the data
     layer : Optional[str], optional
-        Name of the newly created layer, by default normalised
+        Name of the newly created layer, by default 'normalised'
     validity : str, optional
         Column indicating which indices are valid, by default 'valid'
     output : str, optional
