@@ -9,7 +9,7 @@ on:
     - main
     - devel
   schedule:
-    cron: '30 3 1 * *'  # 1st of every month at 3:30
+  - cron: '30 3 1 * *'  # 1st of every month at 3:30
   workflow_dispatch:
 
 jobs:
