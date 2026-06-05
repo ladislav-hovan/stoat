@@ -132,6 +132,7 @@ class NetworkCalculator:
         format: FORMAT = 'feather',
         regions: Union[Path, Iterable[str], None] = None,
         save_network: bool = False,
+        save_stoat: bool = True,
         save_degrees: bool = False,
         overwrite_old = True,
         **kwargs,
@@ -147,6 +148,12 @@ class NetworkCalculator:
                 'degrees calculated either as the output will be Pearson '
                 'correlation networks.')
             save_degrees = False
+        
+        if not save_network and not save_stoat and not save_degrees:
+            print ('Nothing was selected to be saved (STOAT networks, '
+                'degrees, or intermediate networks), so no calculations '
+                'will be performed.')
+            return
 
         def get_full_name(
             base_filename: str,
@@ -174,8 +181,8 @@ class NetworkCalculator:
                     os.path.exists(get_full_name(net_outfile))
                 )
             ):
-                print (f'Skipping region {r} because the STOAT or '
-                    'network file already exists in the target directory.')
+                print (f'Skipping region {r} because the STOAT or intermediate'
+                    ' network file already exists in the target directory.')
                 continue
 
             print (f'Calculating the STOAT network for region {r}.')
@@ -198,9 +205,10 @@ class NetworkCalculator:
             # Equation for deriving the region-specific network
             stoat_net = (n_regions * (self.basis_network - net) + net)
 
-            print ('Saving the STOAT network to '
-                f'{get_full_name(stoat_outfile)}.')
-            save_df_into_file(stoat_net, stoat_outfile, format)
+            if save_stoat:
+                print ('Saving the STOAT network to '
+                    f'{get_full_name(stoat_outfile)}.')
+                save_df_into_file(stoat_net, stoat_outfile, format)
 
             if save_degrees:
                 # Names of output files
