@@ -32,8 +32,8 @@ dependencies = [
     "spagcn>=1.2.0,<2",
     "spatialdata>=0.7.2,<0.8",
     "spatialdata-io>=0.6.0,<0.7",
-    "spatialdata-plot>=0.3.0,<0.4",
-    "squidpy>=1.6.0,<2",
+    "spatialdata-plot>=0.3.0,<0.5",
+    "squidpy>=1.8.2,<2",
     "torch>=2.0.0,<3",
 ]
 

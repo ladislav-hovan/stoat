@@ -41,12 +41,15 @@ class ExpressionSmoother:
     ):
 
         self.st = spatial_table
-        sq.gr.spatial_neighbors(
-            self.st,
-            n_rings=n_rings,
-            n_neighs=n_neighs,
-            coord_type=coord_type,
-        )
+        if coord_type == 'grid':
+            sq.gr.spatial_neighbors_grid(
+                self.st,
+                n_rings=n_rings,
+                n_neighs=n_neighs,
+            )
+        else: 
+            raise ValueError('The coord_type specified is not currently '
+                'supported. Please use "grid" for now.')
         if random_connections:
             self._reshuffle_connections(random_seed)
         self.st.obs['valid'] = self.st.obs['in_tissue']
