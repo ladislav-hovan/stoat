@@ -16,14 +16,13 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
-import spatialdata_plot  # Calm down Pylance, we need this
+# import spatialdata_plot  # Lazy loading
 import warnings
-
-import numpy as np
-import pandas as pd
 
 from functools import wraps
 from matplotlib.pyplot import Axes, Figure
+from numpy import ndarray
+from pandas import DataFrame, Series
 from pathlib import Path
 from scanpy.preprocessing import (calculate_qc_metrics, filter_cells,
     filter_genes, normalize_total)
@@ -213,7 +212,7 @@ class Stoat:
     def plot_qc_metrics(
         self,
         figsize: Tuple[float, float] = (18, 6),
-    ) -> Tuple[Figure, np.ndarray[Axes]]:
+    ) -> Tuple[Figure, ndarray[Axes]]:
 
         self.calculate_qc_metrics()
 
@@ -244,6 +243,8 @@ class Stoat:
         ax: Optional[Axes] = None,
         **kwargs,
     ) -> Axes:
+
+        import spatialdata_plot  # Calm down Pylance, we need this
 
         colour = process_colour_variable(
             self.spatial[self.table],
@@ -322,7 +323,7 @@ class Stoat:
 
     def assign_regions(
         self,
-        mapping: Optional[pd.Series] = None,
+        mapping: Optional[Series] = None,
         from_expression: bool = False,
         layer: Optional[str] = None,
         **kwargs,
@@ -341,8 +342,8 @@ class Stoat:
     def calculate_networks(
         self,
         save_dir: Path = './',
-        motif_prior: Optional[Union[Path, pd.DataFrame]] = None,
-        ppi_prior: Optional[Union[Path, pd.DataFrame]] = None,
+        motif_prior: Optional[Union[Path, DataFrame]] = None,
+        ppi_prior: Optional[Union[Path, DataFrame]] = None,
         log1p_transform: bool = True,
         format: FORMAT = 'feather',
         regions: Union[Path, Iterable[str], None] = None,

@@ -16,13 +16,15 @@
 # with this library. If not, see <https://www.gnu.org/licenses/>.
 
 ### Imports ###
+import warnings
+
 import numpy as np
-import squidpy as sq
 
 from anndata import AnnData
 from collections import Counter
 from numpy.random import default_rng
 from scipy.sparse import csr_matrix, eye
+# from squidpy.gr import spatial_neighbors_grid  # Lazy loading
 from typing import Callable, Optional
 
 from stoat.modules.utils import rescale_weights_by_row, weigh_by_distance
@@ -40,9 +42,15 @@ class ExpressionSmoother:
         random_seed: Optional[int] = None,
     ):
 
+        # Ignore some warnings from squidpy
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore',
+                'SyntaxWarning: .* is not a valid key!')
+            from squidpy.gr import spatial_neighbors_grid
+
         self.st = spatial_table
         if coord_type == 'grid':
-            sq.gr.spatial_neighbors_grid(
+            spatial_neighbors_grid(
                 self.st,
                 n_rings=n_rings,
                 n_neighs=n_neighs,

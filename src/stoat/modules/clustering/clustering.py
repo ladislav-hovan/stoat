@@ -18,17 +18,13 @@
 ### Imports ###
 import hdbscan
 import random
-import torch
+# import torch  # Lazy loading
 import warnings
 
 import numpy as np
 import pandas as pd
 import scanpy as sc
-# Some deprecated imports of input functions in SpaGCN
-with warnings.catch_warnings():
-    warnings.filterwarnings('ignore',
-        'Importing read_.* from `anndata` is deprecated')
-    import SpaGCN as spg
+# import SpaGCN as spg  # Lazy loading
 
 from anndata import AnnData
 from typing import Any, Mapping, Optional, Tuple
@@ -175,6 +171,13 @@ def cluster_spagcn(
     n_seed: Optional[int] = None,
     **kwargs,
 ) -> None:
+
+    import torch
+    # Some deprecated imports of input functions in SpaGCN
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore',
+            'Importing read_.* from `anndata` is deprecated')
+        import SpaGCN as spg
 
     # Calculate the adjacency matrix
     adj_mat = spg.calculate_adj_matrix(
