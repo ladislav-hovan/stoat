@@ -228,7 +228,10 @@ def collate_degrees(
         base_name = file.split('.')[-2].split('_')[-1]
         temp.rename(columns={col_name: base_name}, inplace=True)
         collection.append(temp.copy())
-    df = pd.concat(collection, axis=1)
+    if collection:
+        df = pd.concat(collection, axis=1)
+    else:
+        df = pd.DataFrame()
     save_df_into_filelike(df, output_file, format)
 
 
